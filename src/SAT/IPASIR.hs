@@ -1,1 +1,0 @@
-module SAT.IPASIR where

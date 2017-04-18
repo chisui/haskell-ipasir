@@ -10,14 +10,19 @@ license-file:        LICENSE
 author:              Philipp Dargel
 maintainer:          chisui@fb3.de
 build-type:          Simple
-extra-source-files:  ChangeLog.md, README.md
+extra-source-files:  ChangeLog.md
+                   , README.md
+                   , s-sources/ipasir.h
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     SAT.IPASIR
   Include-Dirs:        c-sources
-  -- other-modules:       
-  -- other-extensions:    
+  exposed-modules:     SAT.IPASIR
+  other-modules:       SAT.IPASIR.API
+                     , SAT.IPASIR.Bindings
   build-depends:       base >=4.9 && <4.10
   hs-source-dirs:      src
   default-language:    Haskell2010
+  build-tools:         C2HS
+  c-sources:           c-sources
+  includes:            ipasir.h
