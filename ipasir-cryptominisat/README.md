@@ -1,1 +1,1 @@
-# ipasir-minisat
+# ipasir-cryptominisat

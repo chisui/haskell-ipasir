@@ -1,7 +1,7 @@
 name:                ipasir-cryptominisat
 version:             0.1.0.0
 homepage:            https://github.com/chisui/haskell-ipasir/tree/master/ipasir-cryptominisat#readme
-license:             BSD3
+license:             MIT
 license-file:        LICENSE
 author:              Author name here
 maintainer:          example@example.com

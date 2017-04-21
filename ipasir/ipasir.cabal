@@ -5,7 +5,7 @@ name:                ipasir
 version:             0.1.0.0
 synopsis:            haskell bindings for IPASIR incremental SAT solving interface
 homepage:            https://github.com/chisui/haskell-ipasir
-license:             GPL-3
+license:             MIT
 license-file:        LICENSE
 author:              Philipp Dargel
 maintainer:          chisui@fb3.de
