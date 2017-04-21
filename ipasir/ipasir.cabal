@@ -12,17 +12,26 @@ maintainer:          chisui@fb3.de
 build-type:          Simple
 extra-source-files:  ChangeLog.md
                    , README.md
-                   , s-sources/ipasir.h
 cabal-version:       >=1.10
 
 library
   Include-Dirs:        c-sources
   exposed-modules:     SAT.IPASIR
-  other-modules:       SAT.IPASIR.API
-                     , SAT.IPASIR.Bindings
+  other-modules:       SAT.IPASIR.Api
+                     , SAT.IPASIR.Solver
+                     , SAT.IPASIR.Literals
+                     , SAT.IPASIR.Formula
   build-depends:       base >=4.9 && <4.10
+                     , containers
+                     , split
   hs-source-dirs:      src
   default-language:    Haskell2010
-  build-tools:         C2HS
-  c-sources:           c-sources
-  includes:            ipasir.h
+
+Test-Suite test
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test
+  main-is:          Spec.hs
+  other-modules:    Spec.SAT.IPASIR
+  build-depends:    base >=4.9 && <4.10
+                  , containers
+                  , ipasir
