@@ -47,6 +47,11 @@ flags: {}
 # Extra package databases containing global packages
 extra-package-dbs: []
 
+extra-lib-dirs:
+- /usr/local/lib/
+extra-include-dirs:
+- /usr/local/include/
+
 # Control whether we use the GHC we find on the path
 # system-ghc: true
 #

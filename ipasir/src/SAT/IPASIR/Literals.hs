@@ -5,13 +5,14 @@
 
 -- | This module provides a type of literals. 
 
+{-# LANGUAGE DeriveFunctor #-}
 module SAT.IPASIR.Literals where
 
 -- | A literal is a positive or negative atom.
 data Lit a
     = Pos a
     | Neg a
-        deriving (Eq)
+        deriving (Eq, Functor)
 
 type Ext l = Either Integer l
 type ELit l = Lit (Ext l)
@@ -26,10 +27,6 @@ instance (Ord a) => Ord (Lit a) where
 instance Show a => Show (Lit a) where
     show (Pos a) = '+' : show a
     show (Neg a) = '-' : show a
-
-instance Functor Lit where
-    fmap f (Pos a) = Pos $ f a
-    fmap f (Neg a) = Neg $ f a
 
 -- | Negate a literal.
 neg :: Lit a -> Lit a

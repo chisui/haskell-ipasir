@@ -17,6 +17,7 @@ cabal-version:       >=1.10
 library
   Include-Dirs:        c-sources
   exposed-modules:     SAT.IPASIR
+                       SAT.IPASIR.CSolver
   other-modules:       SAT.IPASIR.Api
                      , SAT.IPASIR.Solver
                      , SAT.IPASIR.Literals

@@ -9,13 +9,21 @@ copyright:           2017 Author name here
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
+                   , c-sources/ipasir.h
+                   , lib/libipasircryptominisat5.a
 cabal-version:       >=1.10
 
 library
   Build-tools:         c2hs
   hs-source-dirs:      src
+  Include-dirs:        c-sources  
+  Includes:            c-sources/ipasir.h
+  Extra-libraries:     ipasircryptominisat5
+                     , cryptominisat5
+                     , stdc++
+
   exposed-modules:     SAT.IPASIR.Cryptominisat
-  other-modules:       SAT.IPASIR.Cryptominisat.C
+                     , SAT.IPASIR.Cryptominisat.C
   build-depends:       base >= 4.7 && < 5
                      , ipasir
   default-language:    Haskell2010
@@ -25,6 +33,7 @@ test-suite ipasir-cryptominisat-test
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base
+                     , ipasir
                      , ipasir-cryptominisat
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
