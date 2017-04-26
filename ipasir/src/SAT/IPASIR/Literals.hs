@@ -28,6 +28,10 @@ instance Show a => Show (Lit a) where
     show (Pos a) = '+' : show a
     show (Neg a) = '-' : show a
 
+fromBool :: Bool -> Lit ()
+fromBool True  = Pos ()
+fromBool False = Neg ()
+
 -- | Negate a literal.
 neg :: Lit a -> Lit a
 neg (Pos a) = Neg a

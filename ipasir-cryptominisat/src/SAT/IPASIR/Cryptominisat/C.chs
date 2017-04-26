@@ -17,6 +17,8 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Marshal.Array
 
+import Debug.Trace
+
 
 newtype CryptominisatSolver = CryptominisatSolver (ForeignPtr ())
 
@@ -31,14 +33,14 @@ instance CSolver CryptominisatSolver where
         ptr <- {#call unsafe signature #}
         let iPtr = castPtr ptr :: Ptr Word8
         ints <- peekArray0 0 iPtr
-        return $ "cryptominisat:" ++ map (toEnum . fromEnum) ints
+        return $ "cryptominisat:" ++ map ( toEnum . fromEnum) ints
 
     ipasirInit = do
         ptr <- {#call unsafe init #}
         foreignPtr <- newForeignPtr ipasir_release ptr
         return $ CryptominisatSolver foreignPtr
 
-    ipasirAdd lit = withCS (`{#call unsafe add #}` maybe 0 lit2int lit)
+    ipasirAdd lit = withCS (`{#call unsafe add #}` (maybe 0 lit2int lit))
     ipasirAssume lit = withCS (`{#call unsafe assume #}` lit2int lit)
     ipasirSolve = (int2SolveRes . fromEnum <$>) . withCS {#call unsafe solve #}
         where
@@ -46,13 +48,13 @@ instance CSolver CryptominisatSolver where
             int2SolveRes 10 = Just True
             int2SolveRes 20 = Just False
             int2SolveRes a  = error $ "cryptominisat ipasir is behaving poorly: solve returned " ++ show a
-    ipasirVal lit = (int2Lit . fromEnum <$>) . withCS (`{#call unsafe val #}` (toEnum . fromEnum) lit)
+    ipasirVal lit = (int2Lit . fromEnum <$>) . withCS (`{#call unsafe val #}` (toEnum . (+1) . fromEnum) lit)
     ipasirFailed lit = (toEnum . fromEnum <$>) . withCS (`{#call unsafe failed #}` (toEnum . fromEnum) lit)
 
 lit2int (Pos a) = toEnum $   1 +  fromEnum a
 lit2int (Neg a) = toEnum $ (-1) -(fromEnum a)
 
 int2Lit lit
-    | lit >  0 = Just $ Pos $ toEnum (abs lit) + 1
-    | lit <  0 = Just $ Neg $ toEnum (abs lit) + 1
+    | lit >  0 = Just $ Pos $ toEnum (abs lit)
+    | lit <  0 = Just $ Neg $ toEnum (abs lit)
     | lit == 0 = Nothing

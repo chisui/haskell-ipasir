@@ -1,5 +1,6 @@
 module SAT.IPASIR.Cryptominisat
-    ( CryptominisatSolver ) where
+    ( CryptominisatSolver
+    , Cryptominisat ) where
 
 import SAT.IPASIR
 import SAT.IPASIR.Cryptominisat.C

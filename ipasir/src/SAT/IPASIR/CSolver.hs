@@ -20,7 +20,7 @@ class CSolver a where
         ipasirAddClause ls s
     
     ipasirAddClauses :: [[Lit Word]] -> a -> IO ()
-    ipasirAddClauses [] s = ipasirAdd Nothing s
+    ipasirAddClauses [] s = return ()
     ipasirAddClauses (l:ls) s = do
         ipasirAddClause  l s
         ipasirAddClauses ls s
