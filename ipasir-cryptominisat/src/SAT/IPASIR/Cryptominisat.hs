@@ -5,4 +5,4 @@ module SAT.IPASIR.Cryptominisat
 import SAT.IPASIR
 import SAT.IPASIR.Cryptominisat.C
 
-type Cryptominisat v = CIpasir CryptominisatSolver v
+type Cryptominisat v = CIpasir CryptominisatSolver LitCache v

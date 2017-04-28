@@ -19,8 +19,6 @@ import SAT.IPASIR.CSolver
 import SAT.IPASIR.LiteralCache
 import SAT.IPASIR.Literals
 
-import Debug.Trace
-
 
 type Val = Maybe Bool
 
@@ -71,7 +69,6 @@ instance (CSolver s, LiteralCache c) => Solver (CIpasir s c) where
     addClauses :: forall c l x. (Ord l, LiteralCache c, Clauses x, l ~ ClausesLabel x) => CIpasir s c l -> x -> IO (CIpasir s c l)
     addClauses (CIpasir solver cache) rawClauses = do
         ipasirAddClauses intClauses solver
-        traceShowM intClauses
         return $ CIpasir solver cache'
         where
             clauses :: [[ELit l]]

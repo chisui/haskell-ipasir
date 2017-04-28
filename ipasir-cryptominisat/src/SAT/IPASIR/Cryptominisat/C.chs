@@ -17,8 +17,6 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Marshal.Array
 
-import Debug.Trace
-
 
 newtype CryptominisatSolver = CryptominisatSolver (ForeignPtr ())
 
