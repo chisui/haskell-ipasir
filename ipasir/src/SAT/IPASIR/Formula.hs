@@ -6,7 +6,6 @@ import Data.List
 import Control.Monad
 import Prelude hiding (all)
 import qualified Data.Map as Map
-import qualified Data.List.Split as Split
 
 import SAT.IPASIR.Literals
 
@@ -107,7 +106,20 @@ demorgen form = pdemorgen form
         ndemorgen (Some f) = DAll  $ map ndemorgen f
         ndemorgen (Even (x:xs)) = DEven $ map pdemorgen $ notB x : xs
 
-
+evenToCNF :: [Lit v] -> [[Lit v]]
+evenToCNF clause = do
+    let l = length clause
+    k <- map (2*) [0..div l 2]
+    clause `outOf` k
+    where
+        outOf :: [Lit v] -> Int -> [[Lit v]]
+        outOf clause 0 = [clause]
+        outOf []     _ = []
+        outOf (x:xs) k = (map (neg x :) left) ++ (map ( x:) right)
+            where
+                left  = outOf xs (k-1)
+                right = outOf xs k
+    
 -- ----------------------------------------------------------------------
 -- * A monad for translation to CNF
 
@@ -138,25 +150,26 @@ runTrans (Trans f) = (a, clauses)
     (a, _, clauses) = f 0
 
 
-normalForms :: (Eq v) => Formula v -> ([[ELit v]], [[ELit v]])
-normalForms form = (or, xor)
+formulaToNormalform :: Eq v => Formula v -> ([[ELit v]], [[ELit v]])
+formulaToNormalform form = (or, xor)
     where
-        (rest, clauses) = runTrans $ transCnf $ demorgen $ rFormula form
+        (rest, clauses)   = runTrans $ transCnf $ demorgen $ rFormula form
         (or1,xor1,both1)  = partitionClauses rest
         (or2,xor2,both2)  = partitionClauses clauses
         or                = map getLits $ or1  ++  or2 ++ both1 ++ both2
         xor               = map getLits $ xor1 ++ xor2
+
+normalformToCNF :: Eq v => ([[ELit v]], [[ELit v]]) -> [[ELit v]]
+normalformToCNF (or,xor) = or ++ concat (map evenToCNF xor)
+
+formulaToCNF :: Eq v => Formula v -> [[ELit v]]
+formulaToCNF = normalformToCNF . formulaToNormalform
    
-transToFormula :: Trans v [Clause v] -> Formula (ELit v)
-transToFormula t = All $ orFormulas ++ xorFormulas
+normalformToFormula :: ([[ELit v]], [[ELit v]]) -> Formula (ELit v)
+normalformToFormula (or,xor)   = All $ orFormulas ++ xorFormulas
     where
-        (rest, clauses)   = runTrans t
-        (or1,xor1,both1)  = partitionClauses rest
-        (or2,xor2,both2)  = partitionClauses clauses
-        or                = or1  ++  or2 ++ [ Or $ getLits x | x <- both1++both2]
-        xor               = xor1 ++ xor2
-        orFormulas        = [ Some $ map Var lits | ( Or lits) <-  or]
-        xorFormulas       = [ Even $ map Var lits | (XOr lits) <- xor]
+        orFormulas        = [ Some $ map Var lits | lits <-  or]
+        xorFormulas       = [ Even $ map Var lits | lits <- xor]
         signedVar (Pos x) = Var x
         signedVar (Neg x) = Not $ Var x
 
@@ -207,24 +220,6 @@ partitionEven = partitionList checker
     where
         checker (DEven l) = (True,l)
         checker _         = (False,[])
-
-{-
-
-partitionSome :: [DFormula v] -> ([Lit v], [DFormula v])
-partitionSome []            = ([],[])
-partitionSome ((DVar x):xs) = (x:lits, rest) 
-    where
-        (lits, rest)        = partitionSome xs
-partitionSome ((DSome l):xs)= (lits1++lits2, rest1++rest2) 
-    where
-        (lits1, rest1)      = partitionSome l
-        (lits2, rest2)      = partitionSome xs
-partitionSome (x:xs)        = (lits, x:rest) 
-    where
-        (lits, rest)        = partitionSome xs
--}
-
-
 
 partitionClauses :: [Clause v] -> ([Clause v],[Clause v],[Clause v])
 partitionClauses []     = ([],[],[])
@@ -294,7 +289,7 @@ litOfNormalForm clauses = do
     orHelper  :: [ELit v] <- mapM litOfOr orLits
     xorHelper :: [ELit v] <- mapM litOfXor xorLits
 
-    litOfand $ orHelper ++ xorHelper
+    litOfAnd $ orHelper ++ xorHelper
 
 -- | Convert a CNF to a single Lit.
 {-lit_of_cnf :: [[ELit v]] -> Trans v (ELit v)
@@ -305,9 +300,9 @@ lit_of_cnf ds = do
 -}
 
 -- | Convert a conjunction of Lits to a single Lit.
-litOfand :: [ELit v] -> Trans v (ELit v)
-litOfand [l] = return l
-litOfand cs = do
+litOfAnd :: [ELit v] -> Trans v (ELit v)
+litOfAnd [l] = return l
+litOfAnd cs = do
     x <- freshLit
     -- Define x <-> c1 ∧ ... ∧ cn
     addCnf [[neg x, c] | c <- cs ]
@@ -334,69 +329,3 @@ litOfXor ds = do
     return z
 
 
-class ShowableFormula f where
-    isNegation :: f -> Bool
-    isList     :: f -> Bool
-    isTerminal :: f -> Bool
-    isTerminal x = not (isNegation x) && not (isList x)
-    getInner   :: f -> [f]
-    showElem   :: f -> String
-
-
-instance Show v => ShowableFormula (Formula v) where
-    isNegation (Not _) = True
-    isNegation _       = False
-    isList (All _)     = True
-    isList (Some _)    = True
-    isList (Even _)    = True
-    isList _           = False
-    getInner (Not f)   = [f]
-    getInner (All l)   = l
-    getInner (Some l)  = l
-    getInner (Even l)  = l
-    getInner _         = []
-    showElem Yes       = "YES  "
-    showElem No        = "NO   "
-    showElem (All l)   = "ALL  "
-    showElem (Some l)  = "SOME "
-    showElem (Even l)  = "EVEN "
-    showElem (Not f)   = "-"
-    showElem (Var x)   = show x
-
-instance Show v => ShowableFormula (DFormula v) where
-    isNegation _       = False
-    isList (DAll _)    = True
-    isList (DSome _)   = True
-    isList (DEven _)   = True
-    isList _           = False
-    getInner (DAll l)  = l
-    getInner (DSome l) = l
-    getInner (DEven l) = l
-    getInner _         = []
-    showElem (DAll l)  = "ALL  "
-    showElem (DSome l) = "SOME "
-    showElem (DEven l) = "EVEN "
-    showElem (DVar x)  = show x
-
-
-showFormula :: (ShowableFormula f) => f -> String
-showFormula = showFormula' "    "
-
-showFormula' :: (ShowableFormula f) => String -> f -> String
-showFormula' tab f
-    | isList f     = showElem f ++ listHelper (getInner f)
-    | isNegation f = showElem f ++ showFormula' tab (head $ getInner f)
-    | isTerminal f = showElem f
-        where
-            listHelper :: ShowableFormula v => [v] -> String
-            listHelper list
-                | allLits = "[" ++ concat lines ++ tab ++ "]"
-                | otherwise   = "[\n" ++ intercalate "\n" lines ++ "\n]"
-                where
-                    innerFormsStr     = map (showFormula' tab) list
-                    lines             = map (tab++) $ Split.splitOn "\n" $ intercalate "\n" innerFormsStr
-                    allLits       = all isLit list
-                    isLit f
-                        | isTerminal f        = True
-                        | isNegation f        = isLit $ head $ getInner f
-                        | otherwise           = False

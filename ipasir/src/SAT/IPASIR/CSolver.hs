@@ -6,11 +6,11 @@ import SAT.IPASIR.Literals
 
 class CSolver a where
     ipasirSignature :: a -> IO String
-    ipasirInit :: IO a
-    ipasirAdd :: Maybe (Lit Word) -> a -> IO ()
+    ipasirInit   :: IO a
+    ipasirAdd    :: Maybe (Lit Word) -> a -> IO ()
     ipasirAssume :: Lit Word -> a -> IO ()
-    ipasirSolve :: a -> IO (Maybe Bool)
-    ipasirVal :: Word -> a -> IO (Maybe (Lit Word))
+    ipasirSolve  :: a -> IO (Maybe Bool)
+    ipasirVal    :: Word -> a -> IO (Maybe (Lit Word))
     ipasirFailed :: Word -> a -> IO Bool
     
     ipasirAddClause :: [Lit Word] -> a -> IO ()

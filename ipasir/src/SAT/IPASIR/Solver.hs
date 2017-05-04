@@ -11,14 +11,15 @@
 module SAT.IPASIR.Solver where
 
 import Control.Monad
+import Control.Monad.Loops
 
 import Data.Either
+import Data.Maybe
 import qualified Data.Map as Map
 
 import SAT.IPASIR.CSolver
 import SAT.IPASIR.LiteralCache
 import SAT.IPASIR.Literals
-
 
 type Val = Maybe Bool
 
@@ -34,7 +35,7 @@ class Solver (s :: * -> *) where
     new :: forall l. IO (s l)
     addClauses :: (Clauses c, l ~ ClausesLabel c) => s l -> c -> IO (s l)
     solve :: (Ord l) => s l -> IO ( s l, Either (Map.Map l Val) (Map.Map l Bool) )
-
+    solveAllOverVars :: (Ord l) => s l -> [l] -> IO ( s l, [Map.Map l Val] )
 
 
 data CIpasir s c l = CIpasir s (c (Ext l))
@@ -65,6 +66,43 @@ instance (CSolver s, LiteralCache c) => Solver (CIpasir s c) where
             readVal = ((sign <$>) <$>) . (`ipasirVal` solver) . toEnum
             readFail :: Int -> IO Bool
             readFail = (`ipasirFailed` solver) . toEnum
+
+
+    solveAllOverVars :: forall c l. (Ord l, LiteralCache c) => 
+                CIpasir s c l -> [l] -> IO (CIpasir s c l, [Map.Map l Val] )
+    solveAllOverVars c@(CIpasir solver cache) iterateVars = do
+        solutions <- whileM (fromJust <$> ipasirSolve solver) $ do
+            addClauseOfSolution
+            toMap readVal
+
+        return (c, solutions)
+        where
+            intLits = map (varToInt cache . Right) iterateVars
+            toMap :: (Int -> IO a) -> IO (Map.Map l a)
+            toMap f = do
+                pairs <- zipWithM g labels vars
+                return $ Map.fromList pairs
+                where
+                    g v i = (v,) <$> f i
+            addClauseOfSolution :: IO ()
+            addClauseOfSolution = do
+                solution <- mapM readVal intLits
+                
+                ipasirAddClause (clause solution) solver
+            clause solution = do
+                (int, sol) <- zip intLits solution
+                guard (sol == Nothing)
+                let bsol = fromJust sol
+                if bsol
+                then return $ Neg $ toEnum $ int
+                else return $ Pos $ toEnum $ int
+            labels = rights $ intToVar cache `map` vars
+            vars = [0..numVars cache - 1]
+            readVal :: Int -> IO Val
+            readVal = ((sign <$>) <$>) . (`ipasirVal` solver) . toEnum
+            readFail :: Int -> IO Bool
+            readFail = (`ipasirFailed` solver) . toEnum
+
     
     addClauses :: forall c l x. (Ord l, LiteralCache c, Clauses x, l ~ ClausesLabel x) => CIpasir s c l -> x -> IO (CIpasir s c l)
     addClauses (CIpasir solver cache) rawClauses = do

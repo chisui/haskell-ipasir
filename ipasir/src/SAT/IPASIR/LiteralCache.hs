@@ -51,8 +51,6 @@ sameSizer left elems
         strElems = map show elems
         maxSize  = foldl max 0 $ map length strElems
         spaces   = map (\e -> replicate (maxSize - length e) ' ') strElems
-        
-
 
 data LitCache v = LitCache (Vec.Vector v) (Map.Map v Int)
     deriving (Show)
