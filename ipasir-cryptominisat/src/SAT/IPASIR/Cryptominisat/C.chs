@@ -47,15 +47,15 @@ instance CSolver CryptominisatSolver where
             int2SolveRes 10 = Just True
             int2SolveRes 20 = Just False
             int2SolveRes a  = error $ "cryptominisat ipasir is behaving poorly: solve returned " ++ show a
-    ipasirVal lit = (int2Lit . fromEnum <$>) . withCS (`{#call unsafe val #}` (toEnum . (+1) . fromEnum) lit)
+    ipasirVal lit = (int2Lit . fromEnum <$>) . withCS (`{#call unsafe val #}` (toEnum . fromEnum) lit)
     ipasirFailed lit = (toEnum . fromEnum <$>) . withCS (`{#call unsafe failed #}` (toEnum . fromEnum) lit)
 
 cryptoAddXorClauses :: [[Lit Word]] -> CryptominisatSolver -> IO ()
 cryptoAddXorClauses = undefined
     
 
-lit2int (Pos a) = toEnum $   1 +  fromEnum a
-lit2int (Neg a) = toEnum $ (-1) -(fromEnum a)
+lit2int (Pos a) = toEnum $   fromEnum a
+lit2int (Neg a) = toEnum $ -(fromEnum a)
 
 int2Lit lit
     | lit >  0 = Just $ Pos $ toEnum (abs lit)

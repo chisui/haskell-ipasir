@@ -77,9 +77,9 @@ instance LiteralCache LitCache where
     
     intToVar (LitCache vec _) enum = vec Vec.! index
         where
-            index = fromEnum enum
+            index = fromEnum enum - 1
             
-    varToInt (LitCache _ map) var  = toEnum $ map Map.! var
+    varToInt (LitCache _ map) var  = toEnum $ (+1) $ map Map.! var
 
 vectorToMap :: (Ord v) => Vec.Vector v -> Map.Map v Int    
 vectorToMap vec = Map.fromList $ zip (Vec.toList vec) [0..]

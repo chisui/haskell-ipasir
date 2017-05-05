@@ -15,7 +15,11 @@ module SAT.IPASIR
 import SAT.IPASIR.Api as Export
 import SAT.IPASIR.Literals as Export
 import SAT.IPASIR.CSolver as Export
-import SAT.IPASIR.Solver as Export
+import SAT.IPASIR.Solver as Export (
+        Val,
+        Clauses(..),
+        Solver(..),
+        CIpasir(..))
 import SAT.IPASIR.LiteralCache as Export
 import SAT.IPASIR.Formula as Export (
         Formula(..),
