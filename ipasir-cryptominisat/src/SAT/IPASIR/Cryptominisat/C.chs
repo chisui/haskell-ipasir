@@ -4,9 +4,10 @@
 
 {#context lib="ipasircryptominisat5" prefix="ipasir"#}
 #include "ipasir.h"
+#include "cryptominisat_bindings.h"
 
 module SAT.IPASIR.Cryptominisat.C
-    ( CryptominisatSolver ) where
+    ( CryptominisatSolver, cryptoAddXorClauses ) where
 
 import Data.Word
 
@@ -48,6 +49,10 @@ instance CSolver CryptominisatSolver where
             int2SolveRes a  = error $ "cryptominisat ipasir is behaving poorly: solve returned " ++ show a
     ipasirVal lit = (int2Lit . fromEnum <$>) . withCS (`{#call unsafe val #}` (toEnum . (+1) . fromEnum) lit)
     ipasirFailed lit = (toEnum . fromEnum <$>) . withCS (`{#call unsafe failed #}` (toEnum . fromEnum) lit)
+
+cryptoAddXorClauses :: [[Lit Word]] -> CryptominisatSolver -> IO ()
+cryptoAddXorClauses = undefined
+    
 
 lit2int (Pos a) = toEnum $   1 +  fromEnum a
 lit2int (Neg a) = toEnum $ (-1) -(fromEnum a)

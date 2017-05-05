@@ -23,17 +23,27 @@ import SAT.IPASIR.Literals
 
 type Val = Maybe Bool
 
-class (Ord (ClausesLabel c)) => Clauses c where
+class (Ord (ClausesLabel c), Solver s) => Clauses s c where
     type ClausesLabel c
-    toClauses :: Clauses c => c -> [[ELit (ClausesLabel c)]]
+    addClauses :: (ClausesLabel c ~ l) => s l -> c -> IO (s l)
 
-instance (Ord l) => Clauses [[Lit l]] where
+instance (Ord l, CSolver s, LiteralCache c) => Clauses (CIpasir s c) [[Lit l]] where
     type ClausesLabel [[Lit l]] = l
-    toClauses = map (map (Right <$>))
+    addClauses :: (Ord l, LiteralCache c) => CIpasir s c l -> [[Lit l]] -> IO (CIpasir s c l)
+    addClauses (CIpasir solver cache) rawClauses = do
+        ipasirAddClauses intClauses solver
+        return $ CIpasir solver cache'
+        where
+            intClauses :: [[Lit Word]]
+            intClauses = varToInt cache' <$$$> clauses
+            clauses = Right <$$$> rawClauses
+            vars :: [Ext l]
+            vars = ordinal <$> concat clauses
+            cache' = cache `insertVars` vars
+            (<$$$>)=(<$>).(<$>).(<$>)
 
 class Solver (s :: * -> *) where
     new :: forall l. IO (s l)
-    addClauses :: (Clauses c, l ~ ClausesLabel c) => s l -> c -> IO (s l)
     solve :: (Ord l) => s l -> IO ( s l, Either (Map.Map l Val) (Map.Map l Bool) )
     solveAllOverVars :: (Ord l) => s l -> [l] -> IO ( s l, [Map.Map l Val] )
 
@@ -77,6 +87,7 @@ instance (CSolver s, LiteralCache c) => Solver (CIpasir s c) where
 
         return (c, solutions)
         where
+            intLits :: [Int]
             intLits = map (varToInt cache . Right) iterateVars
             toMap :: (Int -> IO a) -> IO (Map.Map l a)
             toMap f = do
@@ -87,36 +98,17 @@ instance (CSolver s, LiteralCache c) => Solver (CIpasir s c) where
             addClauseOfSolution :: IO ()
             addClauseOfSolution = do
                 solution <- mapM readVal intLits
-                
                 ipasirAddClause (clause solution) solver
+            clause :: (Enum e) => [Val] -> [Lit e]
             clause solution = do
                 (int, sol) <- zip intLits solution
-                guard (sol == Nothing)
-                let bsol = fromJust sol
-                if bsol
-                then return $ Neg $ toEnum $ int
-                else return $ Pos $ toEnum $ int
+                guard $ isNothing sol
+                if fromJust sol
+                    then return $ Neg $ toEnum int
+                    else return $ Pos $ toEnum int
             labels = rights $ intToVar cache `map` vars
             vars = [0..numVars cache - 1]
             readVal :: Int -> IO Val
             readVal = ((sign <$>) <$>) . (`ipasirVal` solver) . toEnum
             readFail :: Int -> IO Bool
             readFail = (`ipasirFailed` solver) . toEnum
-
-    
-    addClauses :: forall c l x. (Ord l, LiteralCache c, Clauses x, l ~ ClausesLabel x) => CIpasir s c l -> x -> IO (CIpasir s c l)
-    addClauses (CIpasir solver cache) rawClauses = do
-        ipasirAddClauses intClauses solver
-        return $ CIpasir solver cache'
-        where
-            clauses :: [[ELit l]]
-            clauses = toClauses rawClauses
-            intClauses :: [[Lit Word]]
-            intClauses = varToInt cache' <$$$> clauses
-            vars :: [Ext l]
-            vars = ordinal <$> concat clauses
-            cache' = cache `insertVars` vars
-            (<$$$>)=(<$>).(<$>).(<$>)
-        
-
-

@@ -4,6 +4,7 @@ module SAT.IPASIR.LiteralCache where
 import qualified Data.Map    as Map
 import qualified Data.Vector as Vec
 import Data.List
+import SAT.IPASIR.Literals
 
 class LiteralCache (a :: * -> *) where
     emptyCache :: a l
@@ -13,6 +14,13 @@ class LiteralCache (a :: * -> *) where
     numVars    :: Enum e => a l -> e
     intToVar   :: Enum e => a l -> e -> l
     varToInt   :: (Ord l,Enum e) => a l -> l -> e
+    clausesToIntClauses :: (Ord l, Enum e) => a l -> [[Lit l]] -> (a l, [[Lit e]])
+    clausesToIntClauses lcache clauses = (lcache', newClauses)
+        where
+            lcache' = insertVars lcache vars
+            vars = ordinal `map` concat clauses
+            newClauses = (map.map.(<$>)) (varToInt lcache') clauses
+
     showIntToVar :: Show b =>  a b -> String
     showIntToVar lcache = intercalate "\n" (seperator:lines) ++ '\n':seperator
         where

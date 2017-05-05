@@ -23,6 +23,7 @@ library
                      , SAT.IPASIR.Literals
                      , SAT.IPASIR.Formula
                      , SAT.IPASIR.LiteralCache
+                     , SAT.IPASIR.FormulaPrinting
   build-depends:       base >=4.9 && <4.10
                      , containers
                      , split

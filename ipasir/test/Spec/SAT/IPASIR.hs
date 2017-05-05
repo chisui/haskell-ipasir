@@ -1,3 +1,13 @@
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE InstanceSigs #-}
 module Spec.SAT.IPASIR where
 
 import qualified Data.Map as Map
@@ -7,8 +17,11 @@ data MySolver l = MySolver deriving Show
 
 instance Solver MySolver where
     new = return MySolver
-    addClauses s c = return s
     solve s = return (s, Left Map.empty)
+    solveAllOverVars = undefined
+instance (Ord l) => Clauses MySolver [[Lit l]] where
+    type ClausesLabel [[Lit l]] = l
+    addClauses s _ = return s
 
 main :: IO ()
 main = do

@@ -3,6 +3,7 @@ module SAT.IPASIR.Formula where
 
 import Data.Maybe
 import Data.List
+import Data.String (IsString(..))
 import Control.Monad
 import Prelude hiding (all)
 import qualified Data.Map as Map
@@ -19,6 +20,9 @@ data Formula v
   | Some [Formula v]          -- ^ At least one is true.
   | Even [Formula v]          -- ^ An even number is /true/.
   deriving (Show, Eq, Ord)
+
+instance (IsString v) => IsString (Formula v) where
+    fromString = Var . fromString
 
 notB (Not x) = x
 notB f       = Not f
