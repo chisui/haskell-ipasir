@@ -16,11 +16,10 @@ instance (Ord l) => Clauses (CIpasir CryptominisatSolver LitCache) (Formula l) w
     type ClausesLabel (Formula l) = l
     addClauses (CIpasir cSolver litCache) f = do
         ipasirAddClauses    ors  cSolver
-        --cryptoAddXorClauses xors cSolver
-        return (CIpasir cSolver litCache')
+        cryptoAddXorClauses xors cSolver
+        return (CIpasir cSolver litCache'')
         where
-            rawOrs = formulaToCNF f
-            --(rawOrs,     rawXors) = formulaToNormalform f
+            (rawOrs,     rawXors) = formulaToNormalform f
             (litCache',  ors)  = clausesToIntClauses litCache  rawOrs
-            --(litCache'', xors) = clausesToIntClauses litCache' rawXors
+            (litCache'', xors) = clausesToIntClauses litCache' rawXors
 

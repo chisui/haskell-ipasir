@@ -1,10 +1,11 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE OverloadedLists #-}
 
-{#context lib="ipasircryptominisat5" prefix="ipasir"#}
-#include "ipasir.h"
+{#context lib="ipasircryptominisat5" #}
 #include "cryptominisat_bindings.h"
+#include "ipasir.h"
 
 module SAT.IPASIR.Cryptominisat.C
     ( CryptominisatSolver, cryptoAddXorClauses ) where
@@ -17,6 +18,9 @@ import SAT.IPASIR.CSolver
 import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Marshal.Array
+import Foreign.C.Types
+
+import qualified Data.Vector.Storable as Vec
 
 
 newtype CryptominisatSolver = CryptominisatSolver (ForeignPtr ())
@@ -29,30 +33,41 @@ withCS f (CryptominisatSolver fPtr) = withForeignPtr fPtr f
 
 instance CSolver CryptominisatSolver where
     ipasirSignature _ = do
-        ptr <- {#call unsafe signature #}
+        ptr <- {#call unsafe ipasir_signature #}
         let iPtr = castPtr ptr :: Ptr Word8
         ints <- peekArray0 0 iPtr
         return $ "cryptominisat:" ++ map ( toEnum . fromEnum) ints
 
     ipasirInit = do
-        ptr <- {#call unsafe init #}
+        ptr <- {#call unsafe ipasir_init #}
         foreignPtr <- newForeignPtr ipasir_release ptr
         return $ CryptominisatSolver foreignPtr
 
-    ipasirAdd lit = withCS (`{#call unsafe add #}` (maybe 0 lit2int lit))
-    ipasirAssume lit = withCS (`{#call unsafe assume #}` lit2int lit)
-    ipasirSolve = (int2SolveRes . fromEnum <$>) . withCS {#call unsafe solve #}
+    ipasirAdd lit = withCS (`{#call unsafe ipasir_add #}` (maybe 0 lit2int lit))
+    ipasirAssume lit = withCS (`{#call unsafe ipasir_assume #}` lit2int lit)
+    ipasirSolve = (int2SolveRes . fromEnum <$>) . withCS {#call unsafe ipasir_solve #}
         where
             int2SolveRes 0  = Nothing
             int2SolveRes 10 = Just True
             int2SolveRes 20 = Just False
             int2SolveRes a  = error $ "cryptominisat ipasir is behaving poorly: solve returned " ++ show a
-    ipasirVal lit = (int2Lit . fromEnum <$>) . withCS (`{#call unsafe val #}` (toEnum . fromEnum) lit)
-    ipasirFailed lit = (toEnum . fromEnum <$>) . withCS (`{#call unsafe failed #}` (toEnum . fromEnum) lit)
+    ipasirVal lit = (int2Lit . fromEnum <$>) . withCS (`{#call unsafe ipasir_val #}` (toEnum . fromEnum) lit)
+    ipasirFailed lit = (toEnum . fromEnum <$>) . withCS (`{#call unsafe ipasir_failed #}` (toEnum . fromEnum) lit)
 
 cryptoAddXorClauses :: [[Lit Word]] -> CryptominisatSolver -> IO ()
-cryptoAddXorClauses = undefined
-    
+cryptoAddXorClauses [] s = return ()
+cryptoAddXorClauses (l:ls) s = do
+    cryptoAddXorClause  l s
+    cryptoAddXorClauses ls s
+
+cryptoAddXorClause :: [Lit Word] -> CryptominisatSolver -> IO ()
+cryptoAddXorClause clause = withCS addXorInternal
+    where
+        addXorInternal solverPtr = do
+            let litClause = map lit2int clause :: [CInt]
+            let vector = Vec.fromList litClause
+            Vec.unsafeWith vector ({#call unsafe crypto_add_xor_clause #} solverPtr . castPtr)
+
 
 lit2int (Pos a) = toEnum $   fromEnum a
 lit2int (Neg a) = toEnum $ -(fromEnum a)
