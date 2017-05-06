@@ -15,7 +15,7 @@ main = do
             All [     "a", notB "b",      "c"],
             All [notB "a", notB "b", notB "c"]
         ])
-    s'' <- addClauses s' (Even ["a", "b", "c"])
+    s'' <- addClauses s' (Even ["a", "b", "c", "x", "y", "z"])
     (_, solution) <- solve s''
     unless (isLeft solution) $ error "should be solvable"
     

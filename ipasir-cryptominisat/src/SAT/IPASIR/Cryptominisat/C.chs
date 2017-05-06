@@ -8,7 +8,10 @@
 #include "ipasir.h"
 
 module SAT.IPASIR.Cryptominisat.C
-    ( CryptominisatSolver, cryptoAddXorClauses ) where
+    ( CryptominisatSolver
+    , cryptoAddXorClauses
+    , cryptoAddXorClause
+    ) where
 
 import Data.Word
 
@@ -21,6 +24,8 @@ import Foreign.Marshal.Array
 import Foreign.C.Types
 
 import qualified Data.Vector.Storable as Vec
+
+import Debug.Trace
 
 
 newtype CryptominisatSolver = CryptominisatSolver (ForeignPtr ())
@@ -64,10 +69,12 @@ cryptoAddXorClause :: [Lit Word] -> CryptominisatSolver -> IO ()
 cryptoAddXorClause clause = withCS addXorInternal
     where
         addXorInternal solverPtr = do
-            let litClause = map lit2int clause :: [CInt]
+            let litClause = map (toEnum . (\l -> l - 1) . fromEnum . ordinal) clause :: [CInt]
             let vector = Vec.fromList litClause
-            Vec.unsafeWith vector ({#call unsafe crypto_add_xor_clause #} solverPtr . castPtr)
-
+            Vec.unsafeWith vector $ \ vecPtr -> do
+                let size = toEnum $ fromEnum $ length clause
+                {#call unsafe crypto_add_xor_clause #} solverPtr (castPtr vecPtr) size 1
+                traceShowM vector
 
 lit2int (Pos a) = toEnum $   fromEnum a
 lit2int (Neg a) = toEnum $ -(fromEnum a)
