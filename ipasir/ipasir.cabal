@@ -28,6 +28,9 @@ library
                      , SAT.IPASIR.ClausesCache
   build-depends:       base >=4.9 && <4.10
                      , containers
+                     , transformers
+                     , lens
+                     , primitive
                      , split
                      , vector
                      , monad-loops
