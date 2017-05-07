@@ -8,6 +8,7 @@ import Data.Bits
 import qualified Data.List.Split as Split
 
 import SAT.IPASIR.Formula
+import SAT.IPASIR.Clauses
 import SAT.IPASIR.Literals
 
 tester1 = Var 1 &&* Not (Var 2) &&* (Var 1 ||* Var 2)
@@ -16,6 +17,9 @@ tester3 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 &&* Var 4) ->* Var 3) )
 tester4 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 <->* Var 4) ->* Var 3) )
 tester5 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* Var 2))
 tester6 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* No))
+tester7 = Even $ map Var "ab" 
+tester8 = Even $ map Var "abc"
+tester9 = Even [ Not $ Var 'a', Not $ Var 'b', Not $Var 'c']  
 
 data TransformationStep = TSNormal | TSReduced | TSAfterDemorgen | TSNormalized (Integer -> String) | TSCNF (Integer -> String)
 
@@ -87,6 +91,7 @@ getVars = foldFormula f []
 
 tab = "    "
 
+{-
 showFormulaStatistics formula = "Incoming Formula:\n"                      ++ toText part1 ++ 
                                 "\nAfter Reduction:\n"                     ++ toText part2 ++ 
                                 "\nFinal Form general information:\n"      ++ toText part3 ++
@@ -158,6 +163,7 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         varsReducedCount = length $ nub varsReduced
         inceReducedCount = length $ varsReduced
         varsFinalCount   = length $ nub $ concat $ ors++xors
+-}
 
 showFormulaTransformation :: (Show v,Eq v) => TransformationStep -> Formula v -> String
 showFormulaTransformation TSNormal        formula = showFormula formula
@@ -176,14 +182,12 @@ showFormulaTransformation (TSCNF showHelper) formula = showFormulaEither showHel
 showFormula :: (TraversableFormula f, Show v) => f v -> String
 showFormula = showFormula' tab showElem
 
-showFormulaEither :: Show v => (Integer -> String) -> Formula (ELit v) -> String
+showFormulaEither :: Show v => (Integer -> String) -> Formula (Ext v) -> String
 showFormulaEither showHelper = showFormula' tab shower
     where
     --    show :: Formula (ELit v) -> String
-        shower (Var (Pos (Left i)))  = '+' : showHelper i
-        shower (Var (Neg (Left i)))  = '-' : showHelper i
-        shower (Var (Pos (Right e))) = '+' : show e
-        shower (Var (Neg (Right e))) = '-' : show e
+        shower (Var (Left i))  =  showHelper i
+        shower (Var (Right e)) = show e
         shower x                     = showElem x
 
 showFormula' :: forall f v. (TraversableFormula f) =>  String -> (f v -> String) -> f v -> String
