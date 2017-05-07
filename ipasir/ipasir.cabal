@@ -24,6 +24,8 @@ library
                      , SAT.IPASIR.Formula
                      , SAT.IPASIR.LiteralCache
                      , SAT.IPASIR.FormulaPrinting
+                     , SAT.IPASIR.Clauses
+                     , SAT.IPASIR.ClausesCache
   build-depends:       base >=4.9 && <4.10
                      , containers
                      , split
