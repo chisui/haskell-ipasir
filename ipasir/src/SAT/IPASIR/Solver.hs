@@ -12,6 +12,7 @@ module SAT.IPASIR.Solver where
 
 import Control.Monad
 import Control.Monad.Loops
+import Control.Comonad
 
 import Data.Either
 import Data.Maybe
@@ -40,7 +41,7 @@ instance (Ord l, CSolver s, LiteralCache c) => Clauses (CIpasir s c) [[Lit l]] w
             intClauses = varToInt cache' <$$$> clauses
             clauses = Right <$$$> rawClauses
             vars :: [Ext l]
-            vars = ordinal <$> concat clauses
+            vars = extract <$> concat clauses
             cache' = cache `insertVars` vars
             (<$$$>)=(<$>).(<$>).(<$>)
 

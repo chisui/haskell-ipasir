@@ -6,6 +6,10 @@ module SAT.IPASIR.Cryptominisat
     ( CryptominisatSolver
     , Cryptominisat ) where
 
+import Data.Functor
+
+import Control.Comonad
+
 import SAT.IPASIR
 import SAT.IPASIR.CSolver
 import SAT.IPASIR.Cryptominisat.C
@@ -20,6 +24,8 @@ instance (Ord l) => Clauses (CIpasir CryptominisatSolver LitCache) (Formula l) w
         return (CIpasir cSolver litCache'')
         where
             (rawOrs,     rawXors) = formulaToNormalform f
-            (litCache',  ors)  = clausesToIntClauses litCache  rawOrs
-            (litCache'', xors) = clausesToIntClauses litCache' rawXors
-
+            (litCache',  ors)      = clausesToIntClauses litCache  rawOrs
+            (litCache'', xorsLits) = clausesToIntClauses litCache' wrappedXors
+            xors = zipWith clauseToEXOrClause rawXors xorsLits
+            clauseToEXOrClause raw lits = raw $> map extract lits
+            wrappedXors = map return . extract <$> rawXors

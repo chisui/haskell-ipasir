@@ -8,6 +8,11 @@
 {-# LANGUAGE DeriveFunctor #-}
 module SAT.IPASIR.Literals where
 
+import Data.Bits (xor)
+
+import Control.Comonad
+import Control.Monad
+
 -- | A literal is a positive or negative atom.
 data Lit a
     = Pos a
@@ -22,7 +27,23 @@ type ELit l = Lit (Ext l)
 instance (Ord a) => Ord (Lit a) where
     compare x y = shim x `compare` shim y
         where
-            shim l = (ordinal l, sign l)
+            shim l = (extract l, sign l)
+
+instance Applicative Lit where
+    pure = Pos
+    (<*>) = ap
+
+instance Monad Lit where
+    l >>= f = fromBool (sign l `xor` sign l') $> extract l'
+        where
+            l' = f $ extract l
+
+instance Comonad Lit where
+    extract (Pos a) = a
+    extract (Neg a) = a
+
+    duplicate (Pos a) = Pos $ Pos a
+    duplicate (Neg a) = Neg $ Neg a
 
 instance Show a => Show (Lit a) where
     show (Pos a) = '+' : show a
@@ -36,10 +57,6 @@ fromBool False = Neg ()
 neg :: Lit a -> Lit a
 neg (Pos a) = Neg a
 neg (Neg a) = Pos a
-
-ordinal :: Lit a -> a
-ordinal (Pos a) = a
-ordinal (Neg a) = a
 
 sign :: Lit a -> Bool
 sign (Pos _) = True

@@ -14,18 +14,17 @@ module SAT.IPASIR.Cryptominisat.C
     ) where
 
 import Data.Word
+import qualified Data.Vector.Storable as Vec
 
-import SAT.IPASIR
-import SAT.IPASIR.CSolver
+import Control.Comonad
 
 import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Marshal.Array
 import Foreign.C.Types
 
-import qualified Data.Vector.Storable as Vec
-
-import Debug.Trace
+import SAT.IPASIR
+import SAT.IPASIR.CSolver
 
 
 newtype CryptominisatSolver = CryptominisatSolver (ForeignPtr ())
@@ -59,22 +58,22 @@ instance CSolver CryptominisatSolver where
     ipasirVal lit = (int2Lit . fromEnum <$>) . withCS (`{#call unsafe ipasir_val #}` (toEnum . fromEnum) lit)
     ipasirFailed lit = (toEnum . fromEnum <$>) . withCS (`{#call unsafe ipasir_failed #}` (toEnum . fromEnum) lit)
 
-cryptoAddXorClauses :: [[Lit Word]] -> CryptominisatSolver -> IO ()
+cryptoAddXorClauses :: [Lit [Word]] -> CryptominisatSolver -> IO ()
 cryptoAddXorClauses [] s = return ()
 cryptoAddXorClauses (l:ls) s = do
     cryptoAddXorClause  l s
     cryptoAddXorClauses ls s
 
-cryptoAddXorClause :: [Lit Word] -> CryptominisatSolver -> IO ()
+cryptoAddXorClause :: Lit [Word] -> CryptominisatSolver -> IO ()
 cryptoAddXorClause clause = withCS addXorInternal
     where
         addXorInternal solverPtr = do
-            let litClause = map (toEnum . (\l -> l - 1) . fromEnum . ordinal) clause :: [CInt]
+            let litClause = map (toEnum . (\l -> l - 1) . fromEnum) (extract clause) :: [CInt]
             let vector = Vec.fromList litClause
             Vec.unsafeWith vector $ \ vecPtr -> do
-                let size = toEnum $ fromEnum $ length clause
-                {#call unsafe crypto_add_xor_clause #} solverPtr (castPtr vecPtr) size 1
-                traceShowM vector
+                let size = toEnum $ fromEnum $ length $ extract clause
+                {#call unsafe crypto_add_xor_clause #} solverPtr (castPtr vecPtr) size s
+        s = toEnum $ fromEnum $ sign clause
 
 lit2int (Pos a) = toEnum $   fromEnum a
 lit2int (Neg a) = toEnum $ -(fromEnum a)

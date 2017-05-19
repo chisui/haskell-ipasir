@@ -3,6 +3,9 @@ module SAT.IPASIR.LiteralCache where
 
 import qualified Data.Map    as Map
 import qualified Data.Vector as Vec
+
+
+import Control.Comonad
 import Data.List
 import SAT.IPASIR.Literals
 
@@ -18,7 +21,7 @@ class LiteralCache (a :: * -> *) where
     clausesToIntClauses lcache clauses = (lcache', newClauses)
         where
             lcache' = insertVars lcache vars
-            vars = ordinal `map` concat clauses
+            vars = extract `map` concat clauses
             newClauses = (map.map.(<$>)) (varToInt lcache') clauses
 
     showIntToVar :: Show b =>  a b -> String

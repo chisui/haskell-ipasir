@@ -1,13 +1,16 @@
 {-# LANGUAGE TypeFamilies, ScopedTypeVariables #-}
 module SAT.IPASIR.Formula where
 
+import Prelude hiding (all)
+
 import Data.Bits
 import Data.Maybe
 import Data.List
 import Data.String (IsString(..))
-import Control.Monad
-import Prelude hiding (all)
 import qualified Data.Map as Map
+
+import Control.Monad
+import Control.Comonad
 
 import SAT.IPASIR.Literals
 import SAT.IPASIR.Clauses
@@ -262,7 +265,7 @@ transCnf (DEven l) = do
     helpers <- mapM transLit complexStuff
     let lits' = map lit2ELit lits ++ helpers
     let s     = foldl xor True $ map (not.sign) lits'
-    return [XOr $ (const (map ordinal lits') <$> fromBool s)]
+    return [XOr $ (const (map extract lits') <$> fromBool s)]
 
 transLit a = do
     cnf    <- transCnf a
@@ -315,7 +318,7 @@ litOfXor (Neg [l]) = return $ Neg l
 litOfXor ds = do
     z <- freshLit
     -- Define z <-> x1 ⊕ ... ⊕ xn 
-    addXnf [neg $ ((ordinal z:) <$> ds)]
+    addXnf [neg $ ((extract z:) <$> ds)]
     return z
 
 

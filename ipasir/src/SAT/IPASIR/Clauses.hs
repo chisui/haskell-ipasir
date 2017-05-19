@@ -2,7 +2,9 @@ module SAT.IPASIR.Clauses where
 
 import SAT.IPASIR.Literals
 import Control.Arrow
+import Control.Comonad
 import Data.Maybe
+
 
 data Clause v      = Or (OrClause v) | XOr (XOrClause v)
     deriving (Show, Eq, Ord)
@@ -23,7 +25,7 @@ type ECNF v        = [EOrClause v]
 
 getLits :: Clause v -> [Lit v]
 getLits ( Or a) = a
-getLits (XOr a) = map Pos $ ordinal a
+getLits (XOr a) = map return $ extract a
 
 partitionClauses :: Bool -> [Clause v] -> ([OrClause v],[XOrClause v])
 partitionClauses _     []          = ([],[])
@@ -36,7 +38,7 @@ partitionClauses _ ((XOr x):xs)
     | otherwise          = second (x:) $ partitionClauses True xs
     where
         transformed    = transform vars
-        vars = ordinal x
+        vars = extract x
         transform :: [v] -> Maybe [Lit v]
         transform []  = Just []
         transform [a] = Just [ const a <$> (fromBool $ sign x) ]
@@ -56,7 +58,7 @@ evenToCNF :: Lit [a] -> [[Lit a]]
 evenToCNF xclause = map (zipWith (\v b -> const v <$> fromBool b) vars) bClauses
     where
         bClauses  = evenToCNF' (sign xclause) $ length $ vars
-        vars      = ordinal xclause
+        vars      = extract xclause
 
 xclausesToCNF :: [Lit [a]] -> [[Lit a]]
 xclausesToCNF = concat . map evenToCNF

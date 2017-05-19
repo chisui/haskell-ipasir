@@ -8,15 +8,17 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE InstanceSigs #-}
-
 module SAT.IPASIR.ClausesCache where
+
+import Control.Comonad
+
+import Data.Kind
 
 import SAT.IPASIR.Formula (Formula, formulaToNormalform, formulaToCNF)
 import SAT.IPASIR.Literals
 import SAT.IPASIR.LiteralCache
 import SAT.IPASIR.Clauses
 
-import Data.Kind
 
 data XCnfClausesCache v = XCnfClausesCache (LitCache v) [[Lit Word]] [Lit [Word]] 
 
@@ -86,7 +88,7 @@ instance ClausesCache (XCnfClausesCache) where
             (newLC, [newOC]) = clausesToIntClauses lc [clause]
     addXClause (XCnfClausesCache lc oc xc) xclause  = XCnfClausesCache newLC oc (newXC:xc)
         where
-            newLC = insertVars lc $ ordinal xclause
+            newLC = insertVars lc $ extract xclause
             newXC = map (varToInt newLC) <$> xclause
 
 
