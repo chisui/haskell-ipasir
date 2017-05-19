@@ -1,7 +1,7 @@
 module SAT.IPASIR.Clauses where
 
 import SAT.IPASIR.Literals
-import Data.Graph.Inductive.Query.Monad
+import Control.Arrow
 import Data.Maybe
 
 data Clause v      = Or (OrClause v) | XOr (XOrClause v)
@@ -27,13 +27,13 @@ getLits (XOr a) = map Pos $ ordinal a
 
 partitionClauses :: Bool -> [Clause v] -> ([OrClause v],[XOrClause v])
 partitionClauses _     []          = ([],[])
-partitionClauses True  (Or x:xs) = mapFst (x:) $ partitionClauses True xs
-partitionClauses False (XOr x:xs)= mapSnd (x:) $ partitionClauses False xs
-partitionClauses _ (Or [x]:xs)   = mapSnd ((return <$> x) :) $ partitionClauses False xs  -- ( ors, (return <$> x) : xors)
-partitionClauses _ (Or x:xs)     = mapFst (x:) $ partitionClauses False xs
+partitionClauses True  (Or x:xs) = first (x:) $ partitionClauses True xs
+partitionClauses False (XOr x:xs)= second (x:) $ partitionClauses False xs
+partitionClauses _ (Or [x]:xs)   = second ((return <$> x) :) $ partitionClauses False xs  -- ( ors, (return <$> x) : xors)
+partitionClauses _ (Or x:xs)     = first (x:) $ partitionClauses False xs
 partitionClauses _ ((XOr x):xs)          
-    | isJust transformed = mapFst (fromJust transformed:) $ partitionClauses True xs
-    | otherwise          = mapSnd (x:) $ partitionClauses True xs
+    | isJust transformed = first (fromJust transformed:) $ partitionClauses True xs
+    | otherwise          = second (x:) $ partitionClauses True xs
     where
         transformed    = transform vars
         vars = ordinal x
