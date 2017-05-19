@@ -8,6 +8,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 module SAT.IPASIR.Literals where
 
+import Data.String (IsString(..))
 import Data.Bits (xor)
 
 import Control.Comonad
@@ -48,6 +49,9 @@ instance Comonad Lit where
 instance Show a => Show (Lit a) where
     show (Pos a) = '+' : show a
     show (Neg a) = '-' : show a
+
+instance IsString a => IsString (Lit a) where
+    fromString = return . fromString
 
 fromBool :: Bool -> Lit ()
 fromBool True  = Pos ()

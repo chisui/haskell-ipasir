@@ -15,7 +15,6 @@ extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 library
-  Include-Dirs:        c-sources
   exposed-modules:     SAT.IPASIR
                        SAT.IPASIR.CSolver
   other-modules:       SAT.IPASIR.Api
@@ -46,3 +45,4 @@ Test-Suite ipasir-test
   build-depends:    base >=4.9 && <4.10
                   , containers
                   , ipasir
+  default-language: Haskell2010

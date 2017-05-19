@@ -23,7 +23,7 @@ instance (Ord l) => Clauses (CIpasir CryptominisatSolver LitCache) (Formula l) w
         cryptoAddXorClauses xors cSolver
         return (CIpasir cSolver litCache'')
         where
-            (rawOrs,     rawXors) = formulaToNormalform f
+            (rawOrs,     rawXors)  = formulaToNormalform f
             (litCache',  ors)      = clausesToIntClauses litCache  rawOrs
             (litCache'', xorsLits) = clausesToIntClauses litCache' wrappedXors
             xors = zipWith clauseToEXOrClause rawXors xorsLits
