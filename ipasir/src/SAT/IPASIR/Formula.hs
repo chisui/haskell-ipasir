@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module SAT.IPASIR.Formula where
 
 import Prelude hiding (all)
