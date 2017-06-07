@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 module SAT.IPASIR.Api where
 
 import Control.Monad
@@ -5,6 +6,7 @@ import Control.Monad
 import SAT.IPASIR.Literals
 
 class Ipasir a where
+    type ISolverMarker a
     ipasirSignature :: a -> IO String
     ipasirInit   :: IO a
     ipasirAdd    :: Maybe (Lit Word) -> a -> IO ()
@@ -26,4 +28,3 @@ class Ipasir a where
         ipasirAddClauses ls s
 
     --ipasir_set_terminate :: a ->  (void * solver, void * state, int (*terminate)(void * state));
-

@@ -16,16 +16,14 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     SAT.IPASIR
-                     , SAT.IPASIR.State
-                       SAT.IPASIR.CSolver
-  other-modules:       SAT.IPASIR.Api
-                     , SAT.IPASIR.Solver
+                     , SAT.IPASIR.Api
+  other-modules:       SAT.IPASIR.Solver
+                     , SAT.IPASIR.IpasirSolver
                      , SAT.IPASIR.Literals
                      , SAT.IPASIR.Formula
                      , SAT.IPASIR.LiteralCache
                      , SAT.IPASIR.FormulaPrinting
                      , SAT.IPASIR.Clauses
-                     , SAT.IPASIR.ClausesCache
   build-depends:       base >=4.9 && <4.10
                      , containers
                      , transformers

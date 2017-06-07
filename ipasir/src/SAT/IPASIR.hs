@@ -14,7 +14,7 @@ module SAT.IPASIR
 
 import SAT.IPASIR.Api as Export
 import SAT.IPASIR.Literals as Export
-import SAT.IPASIR.CSolver as Export
+import SAT.IPASIR.IpasirSolver as Export
 import SAT.IPASIR.Solver as Export (
         Val,
         Clauses(..),
