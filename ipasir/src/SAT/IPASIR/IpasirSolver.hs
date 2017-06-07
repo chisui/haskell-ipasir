@@ -1,7 +1,9 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, TypeFamilyDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module SAT.IPASIR.IpasirSolver
     ( IpasirSolver(..)
     ) where
@@ -10,6 +12,7 @@ import Control.Comonad
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Class
 
+import Data.Monoid
 import Data.Maybe
 import qualified Data.Map as Map
 
@@ -18,22 +21,22 @@ import SAT.IPASIR.Solver
 import SAT.IPASIR.Literals
 import SAT.IPASIR.LiteralCache
 
-data IpasirSolver s lc = IpasirSolver
-data MIpasirSolver s lc v = MIpasirSolver s lc
+data IpasirSolver s = IpasirSolver
+data MIpasirSolver s v = MIpasirSolver s (LitCache v)
 
 data MiniSat = MiniSat
-miniSat :: IpasirSolver MiniSat LitCache
+miniSat :: IpasirSolver MiniSat
 miniSat = undefined
 
-instance (Ipasir s, LiteralCache lc) => MSolver (IpasirSolver s (v -> lc v)) where
-    type MSolver' (IpasirSolver s lc) = MIpasirSolver s lc
+instance (Ipasir s') => MSolver (IpasirSolver s') where
+    data MSolver' (IpasirSolver s') = MIpasirSolver s'
 
-    -- (Applicative m, Monoid m, Ord l) => MSolverMarker s -> StateT (m (s l)) IO ()
+    -- newMSolver :: (Applicative m, Monoid (m (s v)), Ord v) => marker -> StateT (m (s v)) IO ()
     newMSolver _ = do
-        oldSolvers <- get
+        oldSolvers :: m (MIpasirSolver s' v) <- get
         newSolver <- lift $ do
             s <- ipasirInit
-            return $ IpasirSolver s emptyCache
+            return $ MIpasirSolver s emptyCache
         put $ oldSolvers <> pure newSolver
         return ()
 
@@ -47,7 +50,7 @@ instance (Ipasir s, LiteralCache lc) => MSolver (IpasirSolver s (v -> lc v)) whe
         solvers <- get
         lift $ mapM solve solvers
             where
-                solve s@(IpasirSolver i lc) = do
+                solve s@(MIpasirSolver i lc) = do
                     let ints = map (varToInt lc) ls
                     (sols, conflict) <- solve' <$> mSolveInt s
                     return (mapLits <$> sols, mapLits conflict)
@@ -67,8 +70,8 @@ instance Ord v => HasVariables [[Lit v]] where
     type VariableType [[Lit v]] = v
     getVars = map extract . nub . concat
 
-instance (Ord v) => Clauses (IpasirSolver s lc v) [[Lit v]] where
-    addClauses :: (Ord l) => IpasirSolver s lc v -> [[Lit v]] -> IO (IpasirSolver s lc v)
+instance (Ord v) => Clauses (IpasirSolver s) [[Lit v]] where
+    addClauses :: (Ord l) => IpasirSolver s -> [[Lit v]] -> IO (IpasirSolver s)
     addClauses (IpasirSolver solver cache) rawClauses = do
         ipasirAddClauses intClauses solver
         return $ CIpasir solver cache'
@@ -82,8 +85,8 @@ instance (Ord v) => Clauses (IpasirSolver s lc v) [[Lit v]] where
             (<$$$>)=(<$>).(<$>).(<$>)
 
 
-mSolveInt :: IpasirSolver s lc v -> IO (ESolution Int)
-mSolveInt (IpasirSolver s lc) = do
+mSolveInt :: MIpasirSolver s v -> IO (ESolution Int)
+mSolveInt (MIpasirSolver s lc) = do
     sol <- ipasirSolve s
     case sol of
         Nothing      -> error "solving interrupted"
