@@ -22,9 +22,13 @@ import SAT.IPASIR.CSolver
 import SAT.IPASIR.LiteralCache
 import SAT.IPASIR.Literals
 
-import Debug.Trace
 
 type Val = Maybe Bool
+
+type Solution v = M.Map v Var
+type Conflict v = M.Map v Bool
+type ESolution v = Either (Solution v) (Conflict v)
+
 
 class (Ord (ClausesLabel c), Solver s) => Clauses s c where
     type ClausesLabel c
@@ -46,9 +50,13 @@ instance (Ord l, CSolver s, LiteralCache c) => Clauses (CIpasir s c) [[Lit l]] w
             (<$$$>)=(<$>).(<$>).(<$>)
 
 class Solver (s :: * -> *) where
-    new :: forall l. IO (s l)
-    solve :: (Ord l) => s l -> IO ( s l, Either (Map.Map l Val) (Map.Map l Bool) )
-    solveAllOverVars :: (Ord l) => s l -> [l] -> IO ( s l, [Map.Map l Val] )
+    type SolverMarker s
+    solve :: (Clauses s c, ClausesLabel c ~ l) => SolverMarker s -> c -> ESolution
+    solveAllForVars :: (Clauses s c, ClausesLabel c ~ l) => SolverMarker s -> c -> [l] -> [Solution l]
+    solveAllForVars = fst . solveAllForVars'
+    solveAllForVars' :: (Clauses s c, ClausesLabel c ~ l) => SolverMarker s -> c -> [l] -> ([Solution l], Conflict l)
+    solveAll :: (Clauses s c, ClausesLabel c ~ l) => SolverMarker s -> c -> [Solution l]
+    solveAll c = solveAllForVars c (extract `map` getLits c)
 
 
 data CIpasir s c l = CIpasir s (c (Ext l))
@@ -59,14 +67,14 @@ instance (CSolver s, LiteralCache c) => Solver (CIpasir s c) where
         return $ CIpasir solver emptyCache
 
     solve :: forall c l. (Ord l, LiteralCache c) => 
-                CIpasir s c l -> IO (CIpasir s c l, Either (Map.Map l Val) (Map.Map l Bool) )
+                CIpasir s c l -> IO (CIpasir s c l, ESolution l)
     solve c@(CIpasir solver cache) = do
         (Just sat) <- ipasirSolve solver
         ret <- readSolution c sat
         return (c, ret)
 
     solveAllOverVars :: forall c l. (Ord l, LiteralCache c) => 
-                CIpasir s c l -> [l] -> IO (CIpasir s c l, [Map.Map l Val] )
+                CIpasir s c l -> [l] -> IO (CIpasir s c l, [Solution l] )
     solveAllOverVars c@(CIpasir solver cache) iterateVars = do
         solutions <- whileM (fromJust <$> ipasirSolve solver) $ do
             addClauseOfSolution
@@ -92,7 +100,7 @@ instance (CSolver s, LiteralCache c) => Solver (CIpasir s c) where
                     else return $ Pos $ toEnum int
 
 
-readSolution :: forall s c l. (Ord l, CSolver s, LiteralCache c) => CIpasir s c l -> Bool -> IO (Either (Map.Map l Val) (Map.Map l Bool))
+readSolution :: forall s c l. (Ord l, CSolver s, LiteralCache c) => CIpasir s c l -> Bool -> IO (ESolution l)
 readSolution (CIpasir solver cache) sat = if sat
     then Left  <$> toMap (readVal solver)
     else Right <$> toMap (readFail solver)

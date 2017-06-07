@@ -16,6 +16,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     SAT.IPASIR
+                     , SAT.IPASIR.State
                        SAT.IPASIR.CSolver
   other-modules:       SAT.IPASIR.Api
                      , SAT.IPASIR.Solver

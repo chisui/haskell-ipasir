@@ -10,6 +10,7 @@ module SAT.IPASIR.Literals where
 
 import Data.String (IsString(..))
 import Data.Bits (xor)
+import Data.Traversable
 
 import Control.Comonad
 import Control.Monad
@@ -30,13 +31,20 @@ instance (Ord a) => Ord (Lit a) where
         where
             shim l = (extract l, sign l)
 
+instance Foldable Lit where
+    foldMap f = f . extract
+
+instance Traversable Lit where
+    traverse f l = (l $>) <$> f (extract l)
+
 instance Applicative Lit where
     pure = Pos
     (<*>) = ap
 
 instance Monad Lit where
-    l >>= f = fromBool (sign l `xor` sign l') $> extract l'
+    l >>= f = s `lit` extract l'
         where
+            s = sign l `xor` sign l'
             l' = f $ extract l
 
 instance Comonad Lit where
@@ -53,15 +61,21 @@ instance Show a => Show (Lit a) where
 instance IsString a => IsString (Lit a) where
     fromString = return . fromString
 
+-- | Create a Literal with given sign
+lit :: Bool -> a -> Lit a
+lit True  = Pos
+lit False = Neg
+
+-- | Create an Empty Literal with given sign
 fromBool :: Bool -> Lit ()
-fromBool True  = Pos ()
-fromBool False = Neg ()
+fromBool = (`lit` ())
 
 -- | Negate a literal.
 neg :: Lit a -> Lit a
 neg (Pos a) = Neg a
 neg (Neg a) = Pos a
 
+-- | Get the sign of a Literal
 sign :: Lit a -> Bool
 sign (Pos _) = True
 sign (Neg _) = False

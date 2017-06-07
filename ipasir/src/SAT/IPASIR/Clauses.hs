@@ -28,7 +28,7 @@ getLits ( Or a) = a
 getLits (XOr a) = map return $ extract a
 
 partitionClauses :: Bool -> [Clause v] -> ([OrClause v],[XOrClause v])
-partitionClauses _     []          = ([],[])
+partitionClauses _     []        = ([],[])
 partitionClauses True  (Or x:xs) = first (x:) $ partitionClauses True xs
 partitionClauses False (XOr x:xs)= second (x:) $ partitionClauses False xs
 partitionClauses _ (Or [x]:xs)   = second ((return <$> x) :) $ partitionClauses False xs  -- ( ors, (return <$> x) : xors)

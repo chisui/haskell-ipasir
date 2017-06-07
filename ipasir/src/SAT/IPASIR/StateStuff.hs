@@ -5,7 +5,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DeriveFunctor #-}
 module SAT.IPASIR.StateStuff where
 
 import Data.Traversable
@@ -15,6 +14,7 @@ import Control.Monad.Primitive
 import Control.Lens
 
 import Data.Monoid
+import SAT.IPASIR.Literals
 
 import qualified Data.Map as M
 
@@ -28,66 +28,29 @@ type ESolution v = Either (Solution v) (Conflict v)
 data CryptoMiniSat = CryptoMiniSat
 data MiniSat = MiniSat
 
-class (Ord (ClausesLabel c), Solver s) => IsClause s (c :: *) where
-    type ClausesLabel c
-    addClauses :: (ClausesLabel c ~ l) => s -> c -> IO s
-
-class Solver s where
-    solveAssuming   :: (IsClause s c) => s -> c -> [v] -> ESolution v
-    
-    solve           :: (IsClause s c) => s -> c -> ESolution v
-    solve       s c = solveAssuming s c []
-
-
-class (Ord (StClausesLabel c), MSolver s) => IsMClause s (c :: *) where
-    type StClausesLabel c
-    mAddClauses :: (Ord l) => c -> s l -> IO (s l)
-
-    stAddClauses :: (Traversable m, Ord l, IsMClause s c) => c -> StateT (m (s l)) IO ()
-    stAddClauses clauses = do
-        solver  <- get
-        solver' <- lift $ mapM (mAddClauses clauses) solver
-        put solver'
+class (Ord (ClausesLabel c), MSolver s) => MClauses s (c :: *) where
+    type MClausesLabel c
+    addClauses :: (Traversable m, ClausesLabel c ~ l, Clauses s c) => c -> StateT (m (s l)) IO ()
 
 class MSolver (s :: * -> *) where
-    newSolver :: (Ord l) => IO (s l)
-    mSolve    :: (Ord l) => s l -> IO (ESolution l, s l)
+    type MSolverMarker s
+    newMSolver :: (Applicative m, Ord l) => StateT (m (s l)) IO ()
     
-    stNewSolver :: (Applicative m, Ord l) => StateT (m (s l)) IO ()
-    stNewSolver = put . pure =<< lift newSolver
-    
-    stSolve :: forall m l. (Traversable m, Applicative m, Ord l) => StateT (m (s l)) IO (m (ESolution l))
-    stSolve = do
-        solver <- get
-        do 
-            r <- lift $ mapM mSolve solver :: StateT (m (s l)) IO (m (ESolution l, s l))
-            mapM (put . pure . snd) r
-            mapM (return . fst) r
+    mSolve :: forall m l. (Traversable m, Ord l) => StateT (m (s l)) IO (m (ESolution l))
 
 data CCryptominiSat = CCryptominiSat
 newtype MCryptoMiniSat l = MCryptoMiniSat CCryptominiSat
 
-newCryptominiSat :: (Applicative m, Monoid (m (MCryptoMiniSat l)), Ord l) => l -> StateT (m (MCryptoMiniSat l)) IO ()
-newCryptominiSat _ = stNewSolver
+runSolver' :: (Monoid a, Monad m) => StateT a m b -> m b
+runSolver' s = evalStateT s mempty 
 
-instance MSolver MCryptoMiniSat where
-    newSolver = undefined
-    mSolve = undefined
-
-data Lit a
-    = Pos a
-    | Neg a
-        deriving (Eq, Ord)
-
-instance (Ord l) => IsMClause MCryptoMiniSat [[Lit l]] where
-    type StClausesLabel [[Lit l]] = l
-    mAddClauses = undefined
-
-runSolver :: (Monoid a, Monad m) => StateT a m b -> m b
-runSolver s = evalStateT s mempty 
+runSolver :: (MSolver s, Ord l) => StateT (Identity (s l)) IO a -> IO a
+runSolver s = do
+    (Last (Just solver)) <- runSolver' newMSolver
+    evalStateT (Identity solver) s
 
 main :: IO ()
-main = runSolver operation
+main = runSolver' operation
 
 
 operation :: StateT (Last (MCryptoMiniSat String), Last (MCryptoMiniSat String)) IO ()
