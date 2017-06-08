@@ -50,7 +50,7 @@ instance (Ipasir i, LiteralCache lc, Ord v) => MSolver (MIpasirSolver i) lc v wh
         solvers <- get
         lift $ mapM mSolve' solvers
         where
-            mSolve' :: MIpasirSolver s lc v -> IO (ESolution v)
+            mSolve' :: (LiteralCache lc, Ipasir i) => MIpasirSolver i lc v -> IO (ESolution v)
             mSolve' solver@(MIpasirSolver i lc) = bimap (mapLits lc) (mapLits lc) <$> mSolveInt solver
 
     -- forall m l. (Traversable m, Ord l) => [l] -> StateT (m (s l)) IO (m ([Solution l], Conflict l))
@@ -82,38 +82,33 @@ instance Ord v => HasVariables [[Lit v]] where
     type VariableType [[Lit v]] = v
     getVars = map extract . nub . concat
 
-instance (Ord v1, Ipasir i) => Clauses (MIpasirSolver i) [[Lit v1]] where
-    addClauses :: [[Lit v1]] -> StateT (m (MIpasirSolver i lc v)) IO ()
+instance (Ord v, Ipasir i) => Clauses (MIpasirSolver i) [[Lit v]] where
     addClauses rawClauses = do
         solvers <- get
         newSolver <- lift $ mapM addClauses' solvers
         put newSolver
         return ()
         where
-            addClauses' :: MIpasirSolver i lc v' -> IO (MIpasirSolver i lc v')
             addClauses' (MIpasirSolver solver cache) = do
                 ipasirAddClauses intClauses solver
                 return $ MIpasirSolver solver cache'
                 where
                     intClauses :: [[Lit Word]]
-                    intClauses = varToInt cache' <$$$> clauses
-                    clauses = Right <$$$> rawClauses
-                    vars = extract <$> concat clauses
-                    cache' = cache insertVars vars
+                    intClauses = varToInt cache' <$$$> rawClauses
+                    vars = extract <$> concat rawClauses
+                    cache' = cache `insertVars` vars
                     (<$$$>)=(<$>).(<$>).(<$>)
 
 mapLits :: (Enum e, Ord v, LiteralCache lc) => lc v -> Map.Map e a -> Map.Map v a
 mapLits lc = Map.mapKeys (intToVar lc)
 
-mSolve' :: MIpasirSolver s lc v -> IO (ESolution v)
-mSolve' s@(MIpasirSolver _ lc) = mapLits lc $ mSolveInt s
-
-mSolveInt :: MIpasirSolver s lc v -> IO (ESolution Word)
+mSolveInt :: (LiteralCache lc, Ipasir i) => MIpasirSolver i lc v -> IO (ESolution Word)
 mSolveInt (MIpasirSolver s lc) = do
     sol <- ipasirSolve s
     case sol of
         Nothing -> error "solving interrupted"
-        (Just True) -> Left <$> makeSolution ( ((sign <$>) <$> ) . ipasirVal)
-        (Just False) -> Right <$> makeSolution ipasirFailed
+        (Just True) -> Left <$> makeSolution ( ((sign <$>) <$> ) . (`ipasirVal` s))
+        (Just False) -> Right <$> makeSolution (`ipasirFailed` s)
     where
+        makeSolution :: (Word -> IO a) -> IO (Map.Map Word a)
         makeSolution ioOp = Map.fromList <$> mapM (\i -> (i,) <$> ioOp i) [1..numVars lc]

@@ -15,11 +15,7 @@ module SAT.IPASIR
 import SAT.IPASIR.Api as Export
 import SAT.IPASIR.Literals as Export
 import SAT.IPASIR.IpasirSolver as Export
-import SAT.IPASIR.Solver as Export (
-        Val,
-        Clauses(..),
-        Solver(..),
-        CIpasir(..))
+import SAT.IPASIR.Solver as Export
 import SAT.IPASIR.LiteralCache as Export
 import SAT.IPASIR.Formula as Export (
         Formula(..),
@@ -33,4 +29,4 @@ import SAT.IPASIR.Formula as Export (
         normalformToCNF,
         formulaToCNF,
         normalformToFormula )
-import SAT.IPASIR.FormulaPrinting as Export
+import SAT.IPASIR.FormulaPrinting as Export hiding (getVars)
