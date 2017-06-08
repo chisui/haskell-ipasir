@@ -10,6 +10,7 @@
 {-# LANGUAGE TupleSections #-}
 module SAT.IPASIR.IpasirSolver
 ( IpasirSolver(..)
+, MIpasirSolver(..)
 ) where
 
 import Control.Comonad

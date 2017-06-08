@@ -6,7 +6,6 @@ import Control.Monad
 import SAT.IPASIR.Literals
 
 class Ipasir a where
-    type ISolverMarker a
     ipasirSignature :: a -> IO String
     ipasirInit   :: IO a
     ipasirAdd    :: Maybe (Lit Word) -> a -> IO ()

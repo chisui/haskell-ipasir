@@ -4,28 +4,33 @@
 {-# LANGUAGE FlexibleInstances #-}
 module SAT.IPASIR.Cryptominisat
     ( CryptominisatSolver
-    , Cryptominisat ) where
+    ) where
 
 import Data.Functor
 
 import Control.Comonad
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Lazy
 
 import SAT.IPASIR
-import SAT.IPASIR.CSolver
 import SAT.IPASIR.Cryptominisat.C
 
-type Cryptominisat v = CIpasir CryptominisatSolver LitCache v
-
-instance (Ord l) => Clauses (CIpasir CryptominisatSolver LitCache) (Formula l) where
-    type ClausesLabel (Formula l) = l
-    addClauses (CIpasir cSolver litCache) f = do
-        ipasirAddClauses    ors  cSolver
-        cryptoAddXorClauses xors cSolver
-        return (CIpasir cSolver litCache'')
+instance Ord v => Clauses (MIpasirSolver CryptominisatSolver) (Formula v) where
+    addClauses f = do
+        solvers <- get
+        newSolver <- lift $ mapM addClauses' solvers
+        put newSolver
+        return ()
         where
-            (rawOrs,     rawXors)  = formulaToNormalform f
-            (litCache',  ors)      = clausesToIntClauses litCache  rawOrs
-            (litCache'', xorsLits) = clausesToIntClauses litCache' wrappedXors
-            xors = zipWith clauseToEXOrClause rawXors xorsLits
-            clauseToEXOrClause raw lits = raw $> map extract lits
-            wrappedXors = map return . extract <$> rawXors
+            (rawOrs, rawXors)  = formulaToNormalform f
+            addClauses' (MIpasirSolver cSolver litCache) = do
+                ipasirAddClauses    ors  cSolver
+                cryptoAddXorClauses xors cSolver
+                return (MIpasirSolver cSolver litCache'')
+                where
+                    (litCache',  ors)      = clausesToIntClauses litCache  rawOrs
+                    (litCache'', xorsLits) = clausesToIntClauses litCache' wrappedXors
+                    xors = zipWith clauseToEXOrClause rawXors xorsLits
+                    clauseToEXOrClause raw lits = raw $> map extract lits
+                    wrappedXors = map return . extract <$> rawXors
+                    

@@ -36,6 +36,7 @@ library
                      , vector
                      , lens
                      , comonad
+                     , transformers
   default-language:    Haskell2010
   ghc-options:         -static -optl-static -threaded
 

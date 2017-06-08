@@ -30,3 +30,4 @@ import SAT.IPASIR.Formula as Export (
         formulaToCNF,
         normalformToFormula )
 import SAT.IPASIR.FormulaPrinting as Export hiding (getVars)
+import SAT.IPASIR.IpasirSolver as Export

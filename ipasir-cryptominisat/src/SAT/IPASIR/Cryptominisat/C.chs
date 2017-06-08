@@ -24,7 +24,7 @@ import Foreign.Marshal.Array
 import Foreign.C.Types
 
 import SAT.IPASIR
-import SAT.IPASIR.CSolver
+import SAT.IPASIR.Api
 
 
 newtype CryptominisatSolver = CryptominisatSolver (ForeignPtr ())
@@ -35,7 +35,7 @@ foreign import ccall unsafe "SAT/IPASIR/Cryptominisat/C.chs.h &ipasir_release"
 withCS :: (Ptr () -> IO a) -> CryptominisatSolver -> IO a
 withCS f (CryptominisatSolver fPtr) = withForeignPtr fPtr f
 
-instance CSolver CryptominisatSolver where
+instance Ipasir CryptominisatSolver where
     ipasirSignature _ = do
         ptr <- {#call unsafe ipasir_signature #}
         let iPtr = castPtr ptr :: Ptr Word8
