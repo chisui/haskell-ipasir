@@ -16,6 +16,7 @@ import Control.Comonad
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Class
 
+import Data.List (nub)
 import Data.Monoid
 import Data.Maybe
 import Data.Bifunctor
@@ -57,19 +58,23 @@ instance (Ipasir i, LiteralCache lc, Ord v) => MSolver (MIpasirSolver i) lc v wh
         solvers <- get
         lift $ mapM solve solvers
         where
+            solve :: MIpasirSolver i lc v -> IO ([Solution v], Conflict v)
             solve s@(MIpasirSolver i lc) = do
-                let ints = map (varToInt lc) ls
-                (sols, conflict) :: ([Solution Word], Conflict Word) <- solve' <$> mSolveInt s
-                return (mapLits' <$> sols, mapLits conflict)
+                (sols, conflict) :: ([Solution Word], Conflict Word) <- solve' =<< mSolveInt s
+                return (mapLits lc <$> sols, mapLits lc conflict)
                 where
-                    mapLits' = mapLits lc
-                    solve' (Right conflict) = return (sols, conflict)
+                    ints = map (varToInt lc) ls
+                    solve' :: ESolution Word -> IO ([Solution Word], Conflict Word)
+                    solve' (Right conflict) = return ([], conflict)
                     solve' (Left sol) = do
-                        let clause = mapMaybe (extract sol) (zip ls ints)
-                        ipasirAddClause clause
-                        (sols, conflict) <- solve' <$> mSolveInt s
+                        let clause = mapMaybe (extract sol) ints
+                        ipasirAddClause clause i
+                        (sols, conflict) <- solve' =<< mSolveInt s
                         return (sol:sols, conflict)
-                    extract sol (lit, i) = (i *) . sign' <$> (sol Map.! i)
+                    extract :: Solution Word -> Word -> Maybe (Lit Word)
+                    extract sol i = neg . (`lit` i)  <$> val
+                        where
+                            val = sol Map.! i
                     sign' True = -1
                     sign' False = 1
 
@@ -77,26 +82,33 @@ instance Ord v => HasVariables [[Lit v]] where
     type VariableType [[Lit v]] = v
     getVars = map extract . nub . concat
 
-instance (Ord v, Ipasir i) => Clauses (MIpasirSolver i) [[Lit v]] where
-    addClauses :: (Ord l) => IpasirSolver i lc -> [[Lit v]] -> IO (IpasirSolver i lc v)
-    addClauses (IpasirSolver solver cache) rawClauses = do
-        ipasirAddClauses intClauses solver
-        return $ CIpasir solver cache'
+instance (Ord v1, Ipasir i) => Clauses (MIpasirSolver i) [[Lit v1]] where
+    addClauses :: [[Lit v1]] -> StateT (m (MIpasirSolver i lc v)) IO ()
+    addClauses rawClauses = do
+        solvers <- get
+        newSolver <- lift $ mapM addClauses' solvers
+        put newSolver
+        return ()
         where
-            intClauses :: [[Lit Word]]
-            intClauses = varToInt cache' <$$$> clauses
-            clauses = Right <$$$> rawClauses
-            vars :: [Ext l]
-            vars = extract <$> concat clauses
-            cache' = cache insertVars vars
-            (<$$$>)=(<$>).(<$>).(<$>)
+            addClauses' :: MIpasirSolver i lc v' -> IO (MIpasirSolver i lc v')
+            addClauses' (MIpasirSolver solver cache) = do
+                ipasirAddClauses intClauses solver
+                return $ MIpasirSolver solver cache'
+                where
+                    intClauses :: [[Lit Word]]
+                    intClauses = varToInt cache' <$$$> clauses
+                    clauses = Right <$$$> rawClauses
+                    vars = extract <$> concat clauses
+                    cache' = cache insertVars vars
+                    (<$$$>)=(<$>).(<$>).(<$>)
 
+mapLits :: (Enum e, Ord v, LiteralCache lc) => lc v -> Map.Map e a -> Map.Map v a
 mapLits lc = Map.mapKeys (intToVar lc)
 
 mSolve' :: MIpasirSolver s lc v -> IO (ESolution v)
 mSolve' s@(MIpasirSolver _ lc) = mapLits lc $ mSolveInt s
 
-mSolveInt :: MIpasirSolver s lc v -> IO (ESolution Int)
+mSolveInt :: MIpasirSolver s lc v -> IO (ESolution Word)
 mSolveInt (MIpasirSolver s lc) = do
     sol <- ipasirSolve s
     case sol of
