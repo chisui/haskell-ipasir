@@ -79,6 +79,8 @@ instance (Ipasir i, LiteralCache lc, Ord v) => MSolver (MIpasirSolver i) lc v wh
                     sign' True = -1
                     sign' False = 1
 
+instance (Ipasir i, LiteralCache lc, Ord v) => Solver (MIpasirSolver i) lc v where
+
 instance Ord v => HasVariables [[Lit v]] where
     type VariableType [[Lit v]] = v
     getVars = map extract . nub . concat
