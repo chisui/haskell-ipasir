@@ -3,7 +3,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 module SAT.IPASIR.Cryptominisat
-    ( CryptominisatSolver
+    ( CryptoMiniSat
+    , cryptoMiniSat
     ) where
 
 import Data.Functor
@@ -15,7 +16,10 @@ import Control.Monad.Trans.State.Lazy
 import SAT.IPASIR
 import SAT.IPASIR.Cryptominisat.C
 
-instance Ord v => Clauses (MIpasirSolver CryptominisatSolver) (Formula v) where
+cryptoMiniSat :: IpasirSolver CryptoMiniSat LitCache
+cryptoMiniSat = undefined
+
+instance Ord v => Clauses (MIpasirSolver CryptoMiniSat) (Formula v) where
     addClauses f = do
         solvers <- get
         newSolver <- lift $ mapM addClauses' solvers

@@ -43,5 +43,6 @@ Test-Suite ipasir-test
   other-modules:    Spec.SAT.IPASIR
   build-depends:    base >=4.9 && <4.10
                   , containers
+                  , transformers
                   , ipasir
   default-language: Haskell2010

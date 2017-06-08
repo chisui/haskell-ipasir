@@ -8,7 +8,7 @@
 #include "ipasir.h"
 
 module SAT.IPASIR.Cryptominisat.C
-    ( CryptominisatSolver
+    ( CryptoMiniSat
     , cryptoAddXorClauses
     , cryptoAddXorClause
     ) where
@@ -27,15 +27,15 @@ import SAT.IPASIR
 import SAT.IPASIR.Api
 
 
-newtype CryptominisatSolver = CryptominisatSolver (ForeignPtr ())
+newtype CryptoMiniSat = CryptoMiniSat (ForeignPtr ())
 
 foreign import ccall unsafe "SAT/IPASIR/Cryptominisat/C.chs.h &ipasir_release"
     ipasir_release :: FinalizerPtr ()
 
-withCS :: (Ptr () -> IO a) -> CryptominisatSolver -> IO a
-withCS f (CryptominisatSolver fPtr) = withForeignPtr fPtr f
+withCS :: (Ptr () -> IO a) -> CryptoMiniSat -> IO a
+withCS f (CryptoMiniSat fPtr) = withForeignPtr fPtr f
 
-instance Ipasir CryptominisatSolver where
+instance Ipasir CryptoMiniSat where
     ipasirSignature _ = do
         ptr <- {#call unsafe ipasir_signature #}
         let iPtr = castPtr ptr :: Ptr Word8
@@ -45,7 +45,7 @@ instance Ipasir CryptominisatSolver where
     ipasirInit = do
         ptr <- {#call unsafe ipasir_init #}
         foreignPtr <- newForeignPtr ipasir_release ptr
-        return $ CryptominisatSolver foreignPtr
+        return $ CryptoMiniSat foreignPtr
 
     ipasirAdd lit = withCS (`{#call unsafe ipasir_add #}` (maybe 0 lit2int lit))
     ipasirAssume lit = withCS (`{#call unsafe ipasir_assume #}` lit2int lit)
@@ -58,13 +58,13 @@ instance Ipasir CryptominisatSolver where
     ipasirVal lit = (int2Lit . fromEnum <$>) . withCS (`{#call unsafe ipasir_val #}` (toEnum . fromEnum) lit)
     ipasirFailed lit = (toEnum . fromEnum <$>) . withCS (`{#call unsafe ipasir_failed #}` (toEnum . fromEnum) lit)
 
-cryptoAddXorClauses :: [Lit [Word]] -> CryptominisatSolver -> IO ()
+cryptoAddXorClauses :: [Lit [Word]] -> CryptoMiniSat -> IO ()
 cryptoAddXorClauses [] s = return ()
 cryptoAddXorClauses (l:ls) s = do
     cryptoAddXorClause  l s
     cryptoAddXorClauses ls s
 
-cryptoAddXorClause :: Lit [Word] -> CryptominisatSolver -> IO ()
+cryptoAddXorClause :: Lit [Word] -> CryptoMiniSat -> IO ()
 cryptoAddXorClause clause = withCS addXorInternal
     where
         addXorInternal solverPtr = do

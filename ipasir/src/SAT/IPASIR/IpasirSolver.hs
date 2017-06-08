@@ -95,10 +95,10 @@ instance (Ord v, Ipasir i) => Clauses (MIpasirSolver i) [[Lit v]] where
                 return $ MIpasirSolver solver cache'
                 where
                     intClauses :: [[Lit Word]]
-                    intClauses = varToInt cache' <$$$> rawClauses
+                    intClauses = varToInt cache' 💩 rawClauses
                     vars = extract <$> concat rawClauses
                     cache' = cache `insertVars` vars
-                    (<$$$>)=(<$>).(<$>).(<$>)
+                    (💩)=(<$>).(<$>).(<$>)
 
 mapLits :: (Enum e, Ord v, LiteralCache lc) => lc v -> Map.Map e a -> Map.Map v a
 mapLits lc = Map.mapKeys (intToVar lc)

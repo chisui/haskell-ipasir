@@ -11,21 +11,31 @@
 module Spec.SAT.IPASIR where
 
 import qualified Data.Map as Map
+import Data.Monoid
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Lazy
+
 import SAT.IPASIR
 
-data MySolver l = MySolver deriving Show
 
-instance Solver MySolver where
-    new = return MySolver
-    solve s = return (s, Left Map.empty)
-    solveAllOverVars = undefined
+data MySolver (lc :: * -> *) l = MySolver deriving Show
+data MyMarker = MyMarker
+
+instance Ord v => MSolver MySolver LitCache v where
+    type Marker MySolver LitCache = MyMarker
+    newMSolver _ = do
+        oldSolvers <- get 
+        put $ oldSolvers <> pure MySolver
+        return ()
+    mSolve = do
+        solvers <- get
+        lift $ mapM (const $ return $ Left Map.empty) solvers
+    mSolveAllForVars _ = undefined
 instance (Ord l) => Clauses MySolver [[Lit l]] where
-    type ClausesLabel [[Lit l]] = l
-    addClauses s _ = return s
+    addClauses _ = return ()
 
 main :: IO ()
-main = do
-    s <- new :: IO (MySolver String)
-    s' <- addClauses s [[Pos "a"]]
-    (s'', _) <- solve s'
-    putStrLn "\nBasic API works"
+main = runSolver MyMarker $ do
+    addClauses [[Pos "a"]]
+    _ <- mSolve
+    lift $ putStrLn "\nBasic API works"
