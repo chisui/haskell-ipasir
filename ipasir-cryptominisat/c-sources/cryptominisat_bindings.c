@@ -7,7 +7,7 @@
 
 void crypto_add_xor_clause(void* rawSolver, void* vars, size_t num_vars, bool rhs) {
     printf("crypto_add_xor_clause [");
-    SATSolver* satSolver = (rawSolver + 64);
+    SATSolver* satSolver = get_real_solver(rawSolver);
 
     unsigned maxLit = 0;
     unsigned* vec = (unsigned*) vars;
