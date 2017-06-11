@@ -16,6 +16,8 @@ extra-source-files:  README.md
                    , lib/linux/libcryptominisat5.a
                    , lib/mac/libipasircryptominisat5.a
                    , lib/mac/libcryptominisat5.a
+                   , lib/windows/libipasircryptominisat5.a
+                   , lib/windows/libcryptominisat5.a
 cabal-version:       >=1.10
 
 library

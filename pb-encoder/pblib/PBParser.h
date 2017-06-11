@@ -266,7 +266,7 @@ public:
 		std::vector<int> lits;
 
 		lits.push_back(newSymbol);
-		for(uint i=0;i<product.size();++i)
+		for(unsigned i=0;i<product.size();++i)
 		{
 			lits.push_back(-product[i]);
 		}
@@ -275,7 +275,7 @@ public:
 		lits.clear();
 		lits.push_back(-newSymbol);
 
-		for(uint i=0;i<product.size();++i)
+		for(unsigned i=0;i<product.size();++i)
 		{
 			lits.push_back(product[i]);
 			addClause(lits);
@@ -352,7 +352,7 @@ public:
 		sort(list.begin(),list.end());
 
 		// is this a known product ?
-		for(uint i=0;i<list.size();++i)
+		for(unsigned i=0;i<list.size();++i)
 		{
 			assert(p!=NULL);
 
@@ -402,7 +402,7 @@ private:
 	void defineProductVariableRec(Callback &cb, 
 			std::vector<ProductNode> &nodes, std::vector<int> &list)
 	{
-		for(uint i=0;i<nodes.size();++i)
+		for(unsigned i=0;i<nodes.size();++i)
 		{
 			list.push_back(nodes[i].lit);
 			if (nodes[i].productId)
@@ -422,7 +422,7 @@ private:
 	 */
 	void freeProductVariableRec(std::vector<ProductNode> &nodes)
 	{
-		for(uint i=0;i<nodes.size();++i)
+		for(unsigned i=0;i<nodes.size();++i)
 		{
 			if (nodes[i].next)
 			{

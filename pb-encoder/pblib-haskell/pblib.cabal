@@ -12,7 +12,8 @@ maintainer:          chisui@fb3.de
 -- copyright:           
 category:            Foreign
 build-type:          Simple
-extra-source-files:  ChangeLog.md
+extra-source-files:    ChangeLog.md
+                     , lib/linux/libpblib.a
 cabal-version:       >=1.10
 
 Executable test
@@ -24,6 +25,7 @@ Executable test
                      , transformers
                      , ipasir
 library
+  include-dirs:        ../pblib
   exposed-modules:     SAT.PseudoBoolean
   other-modules:       SAT.PseudoBoolean.C
                      , SAT.PseudoBoolean.Config
