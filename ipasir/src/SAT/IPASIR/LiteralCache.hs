@@ -1,34 +1,34 @@
-{-# LANGUAGE RankNTypes, KindSignatures, ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes, KindSignatures, ScopedTypeVariables, MultiParamTypeClasses, FlexibleInstances #-}
 module SAT.IPASIR.LiteralCache where
 
 import qualified Data.Map    as Map
 import qualified Data.Vector as Vec
 
-
 import Control.Comonad
 import Data.List
 import SAT.IPASIR.Literals
 
-class LiteralCache (a :: * -> *) where
-    emptyCache :: a l
-    insertVar  :: Ord l => a l -> l -> a l
-    insertVars :: Ord l => a l -> [l] -> a l
+
+class (Ord v) => LiteralCache lc v where
+    emptyCache :: lc v
+    insertVar  :: lc v ->  v  -> lc v
+    insertVars :: lc v -> [v] -> lc v
     insertVars = foldl insertVar 
-    numVars    :: Enum e => a l -> e
-    intToVar   :: Enum e => a l -> e -> l
-    varToInt   :: (Ord l,Enum e) => a l -> l -> e
-    clausesToIntClauses :: (Ord l, Enum e) => a l -> [[Lit l]] -> (a l, [[Lit e]])
+    numVars    :: Enum e => lc v -> e
+    intToVar   :: Enum e => lc v -> e  -> v
+    varToInt   :: Enum e => lc v -> v -> e
+    clausesToIntClauses :: Enum e => lc v -> [[Lit v]] -> (lc v, [[Lit e]])
     clausesToIntClauses lcache clauses = (lcache', newClauses)
         where
             lcache' = insertVars lcache vars
             vars = extract `map` concat clauses
             newClauses = (map.map.(<$>)) (varToInt lcache') clauses
 
-    showIntToVar :: Show b =>  a b -> String
+    showIntToVar :: Show v =>  lc v -> String
     showIntToVar lcache = intercalate "\n" (seperator:lines) ++ '\n':seperator
         where
-            lastIndex    = numVars lcache - 1 :: Int 
-            indices      = [0..lastIndex]
+            lastIndex    = numVars lcache :: Int 
+            indices      = [1..lastIndex]
             lengthStrInd = length $ show lastIndex
             strIndices   = map resizeIndex indices
             resizeIndex i= replicate (lengthStrInd - length (show i)) ' ' ++ show i
@@ -39,11 +39,11 @@ class LiteralCache (a :: * -> *) where
             lines        = zipWith line strIndices strVars
             lineLength   = length $ head lines
             seperator    = '+': replicate (lineLength-2) '-' ++ "+"
-    showVarToInt :: (Ord b,Show b) => a b -> String
+    showVarToInt :: (Show v) => lc v -> String
     showVarToInt lcache  = seperator ++ '\n' : text ++ '\n' : seperator
         where
-            lastIndex    = numVars lcache - 1 :: Int 
-            tupels       = [ (i,intToVar lcache i) | i <- [0..lastIndex]]
+            lastIndex    = numVars lcache :: Int 
+            tupels       = [ (i,intToVar lcache i) | i <- [1..lastIndex]]
             (index,var)  = unzip $ sortBy (\a b -> compare (snd a) (snd b)) tupels
             strIndex     = sameSizer False index
             strVars      = sameSizer True var
@@ -52,7 +52,6 @@ class LiteralCache (a :: * -> *) where
             lineLength   = length $ head lines
             seperator    = '+': replicate (lineLength-2) '-' ++ "+"
             text         = intercalate "\n" lines
-    
     
 sameSizer :: Show a => Bool -> [a] -> [String]
 sameSizer left elems
@@ -66,7 +65,7 @@ sameSizer left elems
 data LitCache v = LitCache (Vec.Vector v) (Map.Map v Int)
     deriving (Show)
 
-instance LiteralCache LitCache where
+instance (Ord v) => LiteralCache LitCache v where
     emptyCache = LitCache Vec.empty Map.empty
     insertVar cache var
         | elem var vector = cache 
@@ -81,8 +80,9 @@ instance LiteralCache LitCache where
     intToVar (LitCache vec _) enum = vec Vec.! index
         where
             index = fromEnum enum - 1
-            
     varToInt (LitCache _ map) var  = toEnum $ (+1) $ map Map.! var
 
 vectorToMap :: (Ord v) => Vec.Vector v -> Map.Map v Int    
 vectorToMap vec = Map.fromList $ zip (Vec.toList vec) [0..]
+
+
