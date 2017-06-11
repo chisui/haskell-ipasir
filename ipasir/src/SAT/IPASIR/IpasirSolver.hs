@@ -59,19 +59,19 @@ instance (Ipasir i, LiteralCache lc, Ord v) => MSolver (MIpasirSolver i) lc v wh
         solvers <- get
         lift $ mapM solve solvers
         where
-            solve :: MIpasirSolver i lc v -> IO ([Solution v], Conflict v)
+            solve :: MIpasirSolver i lc v -> IO (Conflict v, [Solution v])
             solve s@(MIpasirSolver i lc) = do
-                (sols, conflict) :: ([Solution Word], Conflict Word) <- solve' =<< mSolveInt s
-                return (mapLits lc <$> sols, mapLits lc conflict)
+                (conflict, sols) :: (Conflict Word, [Solution Word]) <- solve' =<< mSolveInt s
+                return (mapLits lc conflict, mapLits lc <$> sols)
                 where
                     ints = map (varToInt lc) ls
-                    solve' :: ESolution Word -> IO ([Solution Word], Conflict Word)
-                    solve' (Right conflict) = return ([], conflict)
-                    solve' (Left sol) = do
+                    solve' :: ESolution Word -> IO (Conflict Word, [Solution Word])
+                    solve' (Left conflict) = return (conflict, [])
+                    solve' (Right sol) = do
                         let clause = mapMaybe (extract sol) ints
                         ipasirAddClause clause i
-                        (sols, conflict) <- solve' =<< mSolveInt s
-                        return (sol:sols, conflict)
+                        (conflict, sols) <- solve' =<< mSolveInt s
+                        return (conflict, sol:sols)
                     extract :: Solution Word -> Word -> Maybe (Lit Word)
                     extract sol i = neg . (`lit` i)  <$> val
                         where
@@ -110,8 +110,8 @@ mSolveInt (MIpasirSolver s lc) = do
     sol <- ipasirSolve s
     case sol of
         Nothing -> error "solving interrupted"
-        (Just True) -> Left <$> makeSolution ( ((sign <$>) <$> ) . (`ipasirVal` s))
-        (Just False) -> Right <$> makeSolution (`ipasirFailed` s)
+        (Just True) -> Right <$> makeSolution ( ((sign <$>) <$> ) . (`ipasirVal` s))
+        (Just False) -> Left <$> makeSolution (`ipasirFailed` s)
     where
         makeSolution :: (Word -> IO a) -> IO (Map.Map Word a)
         makeSolution ioOp = Map.fromList <$> mapM (\i -> (i,) <$> ioOp i) [1..numVars lc]

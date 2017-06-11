@@ -33,7 +33,7 @@ import SAT.IPASIR.Literals
 type Val = Maybe Bool
 type Solution v = Map.Map v Val
 type Conflict v = Map.Map v Bool
-type ESolution v = Either (Solution v) (Conflict v)
+type ESolution v = Either (Conflict v) (Solution v)
 
 class (Ord (VariableType c)) => HasVariables c where
     type VariableType c
@@ -48,7 +48,7 @@ class (LiteralCache lc, Ord v) => MSolver s lc v where
 
     newMSolver :: (Applicative m, Monoid (m (s lc v))) => Marker s lc -> StateT (m (s lc v)) IO ()
     mSolve :: Traversable m => StateT (m (s lc v)) IO (m (ESolution v))
-    mSolveAllForVars :: Traversable m => [v] -> StateT (m (s lc v)) IO (m ([Solution v], Conflict v))
+    mSolveAllForVars :: Traversable m => [v] -> StateT (m (s lc v)) IO (m (Conflict v, [Solution v]))
 
 class (MSolver s lc v) => Solver s lc v where
     solve :: (Clauses s c, v ~ VariableType c) => Marker s lc -> c -> ESolution v
@@ -56,13 +56,13 @@ class (MSolver s lc v) => Solver s lc v where
         addClauses c
         mSolve
 
-    solveAllForVars' :: (Clauses s c, VariableType c ~ v) => Marker s lc -> c -> [v] -> ([Solution v], Conflict v)
+    solveAllForVars' :: (Clauses s c, VariableType c ~ v) => Marker s lc -> c -> [v] -> (Conflict v, [Solution v])
     solveAllForVars' m c ls = runIdentity $ unsafePerformIO $ runSolver m $ do
         addClauses c
         mSolveAllForVars ls
 
     solveAllForVars :: (Clauses s c, VariableType c ~ v) => Marker s lc -> c -> [v] -> [Solution v]
-    solveAllForVars m c ls = fst $ solveAllForVars' m c ls
+    solveAllForVars m c ls = snd $ solveAllForVars' m c ls
     solveAll :: (Clauses s c, VariableType c ~ v) => Marker s lc -> c -> [Solution v]
     solveAll m c = solveAllForVars m c $ getVars c
 
