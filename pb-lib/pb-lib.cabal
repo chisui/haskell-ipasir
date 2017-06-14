@@ -37,6 +37,7 @@ library
                      , SAT.PseudoBoolean.C.Types.CVector
                      , SAT.PseudoBoolean.C.Types.WeightedLit
                      , SAT.PseudoBoolean.C.Bindings
+                     , SAT.IPASIR.PseudoBoolean.State
   other-extensions:    DeriveGeneric, ForeignFunctionInterface
   build-depends:       base >=4.9 && <4.10
                      , transformers
@@ -44,3 +45,4 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
   extra-libraries:     pblib
+                     , stdc++

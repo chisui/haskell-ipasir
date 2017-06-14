@@ -34,7 +34,7 @@ data MIpasirSolver (i :: *) (lc :: * -> *) v = MIpasirSolver i (lc v)
 -- type CryptoMiniSat = MIpasirSolver CryptominisatSolver
 -- type CryptoMiniSatMarker = IpasirSolver CryptominisatSolver
 
-instance (Ipasir i, LiteralCache lc, Ord v) => MSolver (MIpasirSolver i) lc v where
+instance (Ipasir i, LiteralCache lc v, Ord v) => MSolver (MIpasirSolver i) lc v where
     type Marker (MIpasirSolver i) lc = IpasirSolver i lc
 
     -- newMSolver :: (Applicative m, Monoid (m (s v)), Ord v) => marker -> StateT (m (s v)) IO ()
@@ -51,7 +51,7 @@ instance (Ipasir i, LiteralCache lc, Ord v) => MSolver (MIpasirSolver i) lc v wh
         solvers <- get
         lift $ mapM mSolve' solvers
         where
-            mSolve' :: (LiteralCache lc, Ipasir i) => MIpasirSolver i lc v -> IO (ESolution v)
+            mSolve' :: (LiteralCache lc v, Ipasir i) => MIpasirSolver i lc v -> IO (ESolution v)
             mSolve' solver@(MIpasirSolver i lc) = bimap (mapLits lc) (mapLits lc) <$> mSolveInt solver
 
     -- forall m l. (Traversable m, Ord l) => [l] -> StateT (m (s l)) IO (m ([Solution l], Conflict l))
@@ -79,7 +79,7 @@ instance (Ipasir i, LiteralCache lc, Ord v) => MSolver (MIpasirSolver i) lc v wh
                     sign' True = -1
                     sign' False = 1
 
-instance (Ipasir i, LiteralCache lc, Ord v) => Solver (MIpasirSolver i) lc v where
+instance (Ipasir i, LiteralCache lc v, Ord v) => Solver (MIpasirSolver i) lc v where
 
 instance Ord v => HasVariables [[Lit v]] where
     type VariableType [[Lit v]] = v
@@ -102,10 +102,10 @@ instance (Ord v, Ipasir i) => Clauses (MIpasirSolver i) [[Lit v]] where
                     cache' = cache `insertVars` vars
                     (💩)=(<$>).(<$>).(<$>)
 
-mapLits :: (Enum e, Ord v, LiteralCache lc) => lc v -> Map.Map e a -> Map.Map v a
+mapLits :: (Enum e, Ord v, LiteralCache lc v) => lc v -> Map.Map e a -> Map.Map v a
 mapLits lc = Map.mapKeys (intToVar lc)
 
-mSolveInt :: (LiteralCache lc, Ipasir i) => MIpasirSolver i lc v -> IO (ESolution Word)
+mSolveInt :: (LiteralCache lc v, Ipasir i) => MIpasirSolver i lc v -> IO (ESolution Word)
 mSolveInt (MIpasirSolver s lc) = do
     sol <- ipasirSolve s
     case sol of
