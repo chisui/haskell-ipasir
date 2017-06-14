@@ -15,12 +15,11 @@ class (Ord v2) => HelperVarCache cache v1 v2 where
     newSpace   :: cache v1 v2 -> (cache v1 v2, Space)
     newHelper  :: cache v1 v2 -> Space -> (cache v1 v2, v2)
     newHelpers :: cache v1 v2 -> Space -> Word -> (cache v1 v2, [v2])
-    getHelpers :: cache v1 v2 -> Space -> [v2]
-    
+    getHelpers :: Enum e => cache v1 v2 -> Space -> e -> v2
     
 data HVC v1 v2 = HVC {
-                        f1        :: v1 -> v2 ,
-                        f2        :: Word -> v2 ,
+                        toVar     :: v1 -> v2 ,
+                        toHelper  :: Word -> v2 ,
                         nextVar   :: Word ,
                         nextSpace :: Space ,
                         table     :: M.Map Space [Word] 
@@ -41,4 +40,5 @@ instance (Ord v2) => HelperVarCache HVC v1 v2 where
         where
             HVC f1' f2' var nSpace table = hvc
             numbers = [var..var+number-1]
-    getHelpers hvc space = map (f2 hvc) $ table hvc M.! space
+    getHelpers hvc space pos = toHelper hvc $ (table hvc M.! space) !! fromEnum pos
+
