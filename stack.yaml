@@ -2,4 +2,5 @@ resolver: lts-8.11
 
 packages:
 - ipasir/
+- pb-lib/
 - ipasir-cryptominisat/

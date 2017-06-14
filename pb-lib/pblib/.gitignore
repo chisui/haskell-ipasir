@@ -1,0 +1,10 @@
+CMakeFiles/
+CMakeCache.txt
+Makefile
+fuzzer
+pbencoder
+pbo2maxsat
+*.a
+*.so
+*.so.*
+build/
