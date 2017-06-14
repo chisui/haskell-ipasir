@@ -46,19 +46,19 @@ partitionClauses _ ((XOr x):xs)
         
 
 
-evenToCNF' :: Bool -> Int -> [[Bool]]
-evenToCNF' False 0 = [[]]
-evenToCNF' True  0 = []
-evenToCNF' positive numberVars = map (False:) positives ++ map (True:) negatives
+oddToCNF' :: Bool -> Int -> [[Bool]]
+oddToCNF' False 0 = [[]]
+oddToCNF' True  0 = []
+oddToCNF' positive numberVars = map (False:) positives ++ map (True:) negatives
     where
-        negatives = evenToCNF' (not positive) (numberVars-1)
-        positives = evenToCNF' positive (numberVars-1)
+        negatives = oddToCNF' (not positive) (numberVars-1)
+        positives = oddToCNF' positive (numberVars-1)
 
-evenToCNF :: Lit [a] -> [[Lit a]]
-evenToCNF xclause = map (zipWith (\v b -> const v <$> fromBool b) vars) bClauses
+oddToCNF :: Lit [a] -> [[Lit a]]
+oddToCNF xclause = map (zipWith (\v b -> const v <$> fromBool b) vars) bClauses
     where
-        bClauses  = evenToCNF' (sign xclause) $ length $ vars
+        bClauses  = oddToCNF' (sign xclause) $ length $ vars
         vars      = extract xclause
 
 xclausesToCNF :: [Lit [a]] -> [[Lit a]]
-xclausesToCNF = concat . map evenToCNF
+xclausesToCNF = concat . map oddToCNF

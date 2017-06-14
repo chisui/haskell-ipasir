@@ -40,9 +40,9 @@ class (Ord (VariableType c)) => HasVariables c where
     getVars :: c -> [VariableType c]
 
 class (HasVariables c) => Clauses s c where
-    addClauses :: (LiteralCache lc, MSolver s lc (VariableType c), Traversable m, Clauses s c) => c -> StateT (m (s lc (VariableType c))) IO ()
+    addClauses :: (LiteralCache lc (VariableType c), MSolver s lc (VariableType c), Traversable m, Clauses s c) => c -> StateT (m (s lc (VariableType c))) IO ()
 
-class (LiteralCache lc, Ord v) => MSolver s lc v where
+class (LiteralCache lc v, Ord v) => MSolver s lc v where
 
     type family Marker s lc = marker | marker -> s lc
 
