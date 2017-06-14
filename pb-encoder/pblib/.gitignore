@@ -7,3 +7,4 @@ pbo2maxsat
 *.a
 *.so
 *.so.*
+build/
