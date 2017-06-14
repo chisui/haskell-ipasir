@@ -1,9 +1,0 @@
-#! /bin/sh
-cd encoder
-echo -e "#include <math.h>\n$(cat amo.cpp)" > amo.cpp
-echo -e "#include <math.h>\n$(cat bimander_amo_encoding.cpp)" > bimander_amo_encoding.cpp
-echo -e "#include <math.h>\n$(cat binary_amo.cpp)" > binary_amo.cpp
-echo -e "#include <math.h>\n$(cat cardencoding.cpp)" > cardencoding.cpp
-echo -e "#include <math.h>\n$(cat k-product.cpp)" > k-product.cpp
-echo -e "#include <math.h>\n$(cat sorting_merging.cpp)" > sorting_merging.cpp
-cd ..
