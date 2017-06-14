@@ -2,4 +2,8 @@ resolver: lts-8.11
 
 packages:
 - ipasir/
+- pb-lib/
 - ipasir-cryptominisat/
+
+extra-include-dirs:
+- /usr/local/include/
