@@ -12,14 +12,22 @@ newtype Space = Space Int deriving (Eq, Ord, Show, Num)
 
 class (Ord v2) => HelperVarCache cache v1 v2 where
     newHelperVarCache :: (v1 -> v2) -> (Word -> v2) -> cache v1 v2
+    toVar      :: cache v1 v2 -> v1   -> v2 
+    toHelper   :: cache v1 v2 -> Word -> v2 
     newSpace   :: cache v1 v2 -> (cache v1 v2, Space)
     newHelper  :: cache v1 v2 -> Space -> (cache v1 v2, v2)
     newHelpers :: cache v1 v2 -> Space -> Word -> (cache v1 v2, [v2])
     getHelpers :: Enum e => cache v1 v2 -> Space -> e -> v2
+    helpersInNewSpace :: Enum e => cache v1 v2 -> Word -> (cache v1 v2, Space, e -> v2)
+    helpersInNewSpace cache number = (cache'', space, toHelper)
+        where
+            (cache', space) = newSpace cache
+            (cache'',_)     = newHelpers cache' space number
+            toHelper        = getHelpers cache'' space
     
 data HVC v1 v2 = HVC {
-                        toVar     :: v1 -> v2 ,
-                        toHelper  :: Word -> v2 ,
+                        f1        :: v1 -> v2 ,
+                        f2        :: Word -> v2 ,
                         nextVar   :: Word ,
                         nextSpace :: Space ,
                         table     :: M.Map Space [Word] 
@@ -30,6 +38,8 @@ instance Show (HVC v1 v2) where
 
 instance (Ord v2) => HelperVarCache HVC v1 v2 where
     newHelperVarCache f1 f2 = HVC f1 f2 0 0 M.empty
+    toVar cache    = f1 cache
+    toHelper cache = f2 cache
     newSpace hvc        = (HVC f1' f2' var (nSpace+1) (M.insert nSpace [] table), nSpace)
         where
             HVC f1' f2' var nSpace table = hvc

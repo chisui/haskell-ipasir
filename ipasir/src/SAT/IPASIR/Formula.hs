@@ -1,5 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds #-}
+
 module SAT.IPASIR.Formula where
 
 import Prelude hiding (all)
@@ -8,24 +10,25 @@ import Data.Bits
 import Data.Maybe
 import Data.List
 import Data.String (IsString(..))
+import Data.Foldable
 import qualified Data.Map as Map
 
 import Control.Monad
+import Control.Monad.Trans.State.Lazy
 import Control.Comonad
 
 import SAT.IPASIR.Literals
 import SAT.IPASIR.Clauses
 import SAT.IPASIR.VarCache
-import SAT.IPASIR.Solver (HasVariables(..))
 
 data Formula v 
   = Var v                     -- ^ A variable.
   | Yes                       -- ^ The formula /true/.
   | No                        -- ^ The formula /false/.
-  | Not (Formula v)           -- ^ Negation.
+  | Not  (Formula v)          -- ^ Negation.
   | All  [Formula v]          -- ^ All are true.
   | Some [Formula v]          -- ^ At least one is true.
-  | Even [Formula v]          -- ^ An even number is /true/.
+  | Odd  [Formula v]          -- ^ An odd number is /true/.
   deriving (Show, Eq, Ord)
 
 instance (IsString v) => IsString (Formula v) where
@@ -48,10 +51,10 @@ a &&* b       = All [a,b]
 a ||* (Some l) = Some $ a:l
 a ||* b        = Some [a,b]
 
-(Even l1) ++* (Even l2) = Even $ l1++l2
-(Even l) ++* a = Even $ a:l
-a ++* (Even l) = Even $ a:l
-a ++* b        = Even [a,b]
+(Odd l1) ++* (Odd l2) = Odd $ l1++l2
+(Odd l) ++* a = Odd $ a:l
+a ++* (Odd l) = Odd $ a:l
+a ++* b        = Odd [a,b]
 
 a ->*  b       = notB a ||* b
 a <->* b       = notB $ a ++* b
@@ -78,16 +81,17 @@ rFormula (Some l)
     where 
         newForms      = map rFormula l
         reducedList   = filter (/=No) newForms
-rFormula (Even l)
-    | null reducedList  = Yes
-    | positive          = Even reducedList
-    | otherwise         = Even $ notB (head reducedList) : tail reducedList
+rFormula (Odd l)
+    | null reducedList  = if positive then Yes else No
+    | positive          = Odd $ notB (head reducedList) : tail reducedList
+    | otherwise         = Odd reducedList
     where 
         newForms            = map rFormula l
         (trash,reducedList) = partition isTerminal newForms
-        positive            = even $ length $ filter ((==Yes).rFormula) trash
+        positive            = odd $ length $ filter ((==Yes).rFormula) trash
         isTerminal form = form' == No || form' == Yes
             where form' = rFormula form
+
 rFormula (Not x)
     | x' == Yes = No
     | x' == No  = Yes
@@ -99,7 +103,7 @@ data DFormula v
     = DVar  (Lit v) 
     | DAll  [DFormula v]
     | DSome [DFormula v]
-    | DEven [DFormula v]
+    | DOdd [DFormula v]
     deriving (Show, Eq, Ord)
 
 demorgen :: Formula v -> DFormula v
@@ -112,18 +116,94 @@ demorgen form = pdemorgen form
         pdemorgen (Not f)  = ndemorgen f
         pdemorgen (All f)  = DAll  $ map pdemorgen f
         pdemorgen (Some f) = DSome $ map pdemorgen f
-        pdemorgen (Even f) = DEven $ map pdemorgen f
+        pdemorgen (Odd f)  = DOdd $ map pdemorgen f
         
         ndemorgen :: Formula v -> DFormula v
         ndemorgen (Var x)  = DVar $ Neg x
         ndemorgen (Not f)  = pdemorgen f
         ndemorgen (All f)  = DSome $ map ndemorgen f
         ndemorgen (Some f) = DAll  $ map ndemorgen f
-        ndemorgen (Even (x:xs)) = DEven $ map pdemorgen $ notB x : xs
+        ndemorgen (Odd (x:xs)) = DOdd $ map pdemorgen $ notB x : xs
+
+getHelperDefs :: forall hvc v1 v2. HelperVarCache hvc v1 v2 => hvc v1 v2 -> DFormula v1 -> (Word, DFormula v2, [(v2,DFormula v2)])
+getHelperDefs cache formula = (numberHelper, main, helperDefs)
+    where
+        numberHelper            = countHelper formula :: Word
+        (newCache, _, h)        = helpersInNewSpace cache numberHelper
+        f1                      = toVar cache         :: v1 -> v2
+        f2                      = toHelper cache      :: Word -> v2
+        (main, (_,helperDefs))  = runState (getHelperDefs' formula) (0, [])
+        getHelperDefs' :: DFormula v1 -> State (Word,[(v2,DFormula v2)]) (DFormula v2)
+        getHelperDefs' (DVar x)    = return $ DVar $ (f1 <$> x)
+        getHelperDefs' (DAll l)    = DAll <$> foldrM f [] l
+            where
+                f current work = do
+                    formOfCurrent          <- getHelperDefs' current
+                    return $ formOfCurrent:work
+        getHelperDefs' (DSome l)    = DSome <$> foldrM f [] l
+            where
+                f (DVar x) work  = return $ (DVar $ f1 <$> x) : work
+                f (DSome x) work = do
+
+                    formOfCurrent          <- getHelperDefs' (DSome x)
+                    (counter, pastHelpers) <- get
+                    return $ formOfCurrent:work
+                f current work = do -- need Helper
+
+                    formOfCurrent          <- getHelperDefs' current
+                    (counter, pastHelpers) <- get
+                    let helper     = h counter
+                    put (counter+1, (helper,formOfCurrent) : pastHelpers)
+                    return $  (DVar $ Pos helper) : work
+        getHelperDefs' (DOdd l)    = DOdd <$> foldrM f [] l
+            where
+                f (DVar x) work  = return $ (DVar $ f1 <$> x) : work
+                f (DOdd x) work = do
+                    formOfCurrent          <- getHelperDefs' (DOdd x)
+                    (counter, pastHelpers) <- get
+                    return $ formOfCurrent:work
+                f current work = do -- need Helper
+                    formOfCurrent          <- getHelperDefs' current
+                    (counter, pastHelpers) <- get
+                    let helper     = h counter
+                    put (counter+1, (helper,formOfCurrent) : pastHelpers)
+                    return $  (DVar $ Pos helper) : work
+             
+
+
+
+
+countHelper :: (Enum e,Num e) => DFormula v -> e
+countHelper (DVar  x) = toEnum 0
+countHelper (DAll  l) = sum $ map countHelper l
+countHelper (DSome l) = sum (countHelper `map` normals) + toEnum (length others)
+    where
+        normals       = filter    (not . isDVar)  l
+        others        = partition (not . isDSome) normals
+countHelper (DOdd l) = sum (countHelper `map` normals) + toEnum (length others)
+    where
+        normals       = filter    (not . isDVar) l
+        others        = partition (not . isDOdd) normals
+
+
+isDAll  (DAll _ ) = True
+isDAll _          = False
+isDSome (DSome _) = True
+isDSome _         = False
+isDOdd  (DOdd _ ) = True
+isDOdd _          = False
+isDVar  (DVar _ ) = True
+isDVar _          = False
+  
+
+        
+
+
+
 
 {-
-evenToCNF :: [Lit v] -> [[Lit v]]
-evenToCNF clause = do
+oddToCNF :: [Lit v] -> [[Lit v]]
+oddToCNF clause = do
     let l = length clause
     k <- map (2*) [0..div l 2]
     clause `outOf` k
@@ -176,7 +256,7 @@ formulaToNormalform form = (or, xor)
         xor               = xor1 ++ xor2
 
 normalformToCNF :: Eq v => ENormalForm v -> ECNF v
-normalformToCNF (or,xor) = or ++ concat (map evenToCNF xor)
+normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)
 
 formulaToCNF :: Eq v => Formula v -> ECNF v
 formulaToCNF = normalformToCNF . formulaToNormalform
@@ -185,12 +265,12 @@ normalformToFormula :: forall v. ENormalForm v-> Formula (Ext v)
 normalformToFormula (or,xor)   = All $ orFormulas ++ xorFormulas
     where
         orFormulas  :: [Formula (Ext v)]
-        orFormulas   = [ Some $ map (transformLitEven . (Var <$>)) clause | clause <-  or]
+        orFormulas   = [ Some $ map (transformLitOdd . (Var <$>)) clause | clause <-  or]
         xorFormulas :: [Formula (Ext v)]
-        xorFormulas  = [ transformLitEven $ ((Even . map Var) <$> clause) | clause <- xor]
-        transformLitEven :: Lit (Formula a) -> Formula a
-        transformLitEven (Pos form) = form
-        transformLitEven (Neg form) = Not form
+        xorFormulas  = [ transformLitOdd $ ((Odd . map Var) <$> clause) | clause <- xor]
+        transformLitOdd :: Lit (Formula a) -> Formula a
+        transformLitOdd (Pos form) = form
+        transformLitOdd (Neg form) = Not form
         
 
 
@@ -216,7 +296,6 @@ addCnf cs = Trans (\n -> ((), n, map Or cs))
 addXnf :: [EXOrClause v] -> Trans v ()
 addXnf cs = Trans (\n -> ((), n, map XOr cs))
 
-
 partitionList :: (DFormula v -> (Bool,[DFormula v])) -> [DFormula v] -> ([Lit v], [DFormula v])
 partitionList f []          = ([],[])
 partitionList f (DVar x:xs) = (x:lits, rest) 
@@ -230,6 +309,11 @@ partitionList f (x:xs)
         (lits1, rest1)      = partitionList f list
         (lits2, rest2)      = partitionList f xs
 
+partitionAll  :: [DFormula v] -> ([Lit v], [DFormula v])
+partitionAll  = partitionList checker
+    where
+        checker (DAll l)  = (True,l)
+        checker _         = (False,[])
 
 partitionSome :: [DFormula v] -> ([Lit v], [DFormula v])
 partitionSome = partitionList checker
@@ -237,10 +321,10 @@ partitionSome = partitionList checker
         checker (DSome l) = (True,l)
         checker _         = (False,[])
 
-partitionEven :: [DFormula v] -> ([Lit v], [DFormula v])
-partitionEven = partitionList checker
+partitionOdd :: [DFormula v] -> ([Lit v], [DFormula v])
+partitionOdd = partitionList checker
     where
-        checker (DEven l) = (True,l)
+        checker (DOdd l)  = (True,l)
         checker _         = (False,[])
 
 -- _____________________________________________________________
@@ -266,8 +350,8 @@ transCnf (DSome l) = do
     let lits' = map lit2ELit lits
     return [Or $ lits' ++ helpers]
 
-transCnf (DEven l) = do
-    let (lits, complexStuff) = partitionEven l
+transCnf (DOdd l) = do
+    let (lits, complexStuff) = partitionOdd l
     helpers <- mapM transLit complexStuff
     let lits' = map lit2ELit lits ++ helpers
     let s     = foldl xor True $ map (not.sign) lits'

@@ -5,11 +5,14 @@ module SAT.IPASIR.FormulaPrinting where
 import Data.List
 import Data.Maybe
 import Data.Bits
+import Data.List.Split
+import Control.Arrow
 import qualified Data.List.Split as Split
 
 import SAT.IPASIR.Formula
 import SAT.IPASIR.Clauses
 import SAT.IPASIR.Literals
+import SAT.IPASIR.HelperVarCache
 
 tester1 = Var 1 &&* Not (Var 2) &&* (Var 1 ||* Var 2)
 tester2 = Var 1 &&* Var 2 &&* (Var 1 ->* Var 2) &&* Not (Var 2 ->* Var 1) 
@@ -17,14 +20,16 @@ tester3 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 &&* Var 4) ->* Var 3) )
 tester4 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 <->* Var 4) ->* Var 3) )
 tester5 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* Var 2))
 tester6 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* No))
-tester7 = Even $ map Var "ab" 
-tester8 = Even $ map Var "abc"
-tester9 = Even [ Not $ Var 'a', Not $ Var 'b', Not $Var 'c']  
+tester7 = Not $ Odd $ map Var "ab" 
+tester8 = Odd $ map Var "abc"
+tester9 = Odd [ Not $ Var 'a', Not $ Var 'b', Not $Var 'c']
+tester0 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', All [Var 'a',Var 'b']]) ] )
+tester10 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', Odd [Var 'a', Some [All [Var 'x', Var 'c'], Var 'c']]]) ] )
 
-data TransformationStep = TSNormal | TSReduced | TSAfterDemorgen | TSNormalized (Integer -> String) | TSCNF (Integer -> String)
+tester11 = Some [Odd [Some [Var 3, Var 4], Var 2],  Var 1]
+tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Var 2]]
 
-tSNormalized = TSNormalized $ ("Help"++) . show
-tSCNF        = TSCNF        $ ("Help"++) . show
+data TransformationStep = TSNormal | TSReduced | TSAfterDemorgen | TSHelperDefs | TSHelperWise | TSHelperCNF | TSXCNF | TSCNF
 
 class TraversableFormula (f :: * -> *) where
     isNegation  :: f v -> Bool
@@ -47,18 +52,18 @@ instance TraversableFormula Formula where
     isNegation _       = False
     isList (All _)     = True
     isList (Some _)    = True
-    isList (Even _)    = True
+    isList (Odd _)    = True
     isList _           = False
     getInnerFormulas (Not f)   = [f]
     getInnerFormulas (All l)   = l
     getInnerFormulas (Some l)  = l
-    getInnerFormulas (Even l)  = l
+    getInnerFormulas (Odd l)  = l
     getInnerFormulas _         = []
     showElem Yes       = "YES  "
     showElem No        = "NO   "
     showElem (All l)   = "ALL  "
     showElem (Some l)  = "SOME "
-    showElem (Even l)  = "EVEN "
+    showElem (Odd l)   = "ODD  "
     showElem (Not f)   = "-"
     showElem (Var x)   = show x
     unpackVar (Var x)  = Just x
@@ -68,15 +73,15 @@ instance TraversableFormula DFormula where
     isNegation _       = False
     isList (DAll _)    = True
     isList (DSome _)   = True
-    isList (DEven _)   = True
+    isList (DOdd _)    = True
     isList _           = False
     getInnerFormulas (DAll l)  = l
     getInnerFormulas (DSome l) = l
-    getInnerFormulas (DEven l) = l
+    getInnerFormulas (DOdd l) = l
     getInnerFormulas _         = []
     showElem (DAll l)  = "ALL  "
     showElem (DSome l) = "SOME "
-    showElem (DEven l) = "EVEN "
+    showElem (DOdd l)  = "ODD  "
     showElem (DVar x)  = show x
     unpackVar (DVar (Pos x)) = Just x
     unpackVar (DVar (Neg x)) = Just x
@@ -139,7 +144,7 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         reduced    = rFormula formula
         (ors,xors) = formulaToNormalform formula
         horn       = filter isHorn ors
-        transformed= concat $ map evenToCNF xors
+        transformed= concat $ map oddToCNF xors
         transHorn  = filter isHorn ors
         lors       = length ors
         lxors      = length xors
@@ -165,19 +170,26 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         varsFinalCount   = length $ nub $ concat $ ors++xors
 -}
 
-showFormulaTransformation :: (Show v,Eq v) => TransformationStep -> Formula v -> String
+showFormulaTransformation :: forall v. (Show v,Ord v) => TransformationStep -> Formula v -> String
 showFormulaTransformation TSNormal        formula = showFormula formula
 showFormulaTransformation TSReduced       formula = showFormula $ rFormula formula
 showFormulaTransformation TSAfterDemorgen formula = showFormula $ demorgen $ rFormula formula
-showFormulaTransformation (TSNormalized showHelper) formula = showFormulaEither showHelper normalized
+showFormulaTransformation TSXCNF          formula = showFormula normalized
     where
         normalized = normalformToFormula normalform
         normalform = formulaToNormalform formula
-showFormulaTransformation (TSCNF showHelper) formula = showFormulaEither showHelper cnf
+showFormulaTransformation TSCNF           formula = showFormula cnf
     where
         cnf        = normalformToFormula normalform
         normalform = (formulaToCNF formula,[])
-
+showFormulaTransformation TSHelperDefs formula = concat elems'''
+    where
+        cache         = newHelperVarCache Left Right :: HVC v (Either v Word)
+        (_,main,defs) = getHelperDefs cache $ demorgen $ rFormula formula
+        elems         = ("MAIN: \n", main) : first ( (++" :<=> \n") . show) `map` defs 
+        elems'        = second showFormula `map` elems
+        elems''       = second ((tab++) . intercalate ('\n':tab) . splitOn "\n") `map` elems'
+        elems'''      = map (\e -> '\n' : fst e ++ "\n" ++ snd e ++ "\n") elems''
 
 showFormula :: (TraversableFormula f, Show v) => f v -> String
 showFormula = showFormula' tab showElem
