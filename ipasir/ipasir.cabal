@@ -21,7 +21,11 @@ library
                      , SAT.IPASIR.IpasirSolver
                      , SAT.IPASIR.Literals
                      , SAT.IPASIR.Formula
+                     , SAT.IPASIR.VarCache
+                     , SAT.IPASIR.VarCache.Debug
                      , SAT.IPASIR.LiteralCache
+                     , SAT.IPASIR.HelperVarCache
+                     , SAT.IPASIR.ManagedLitCache
                      , SAT.IPASIR.FormulaPrinting
                      , SAT.IPASIR.Clauses
   build-depends:       base >=4.9 && <4.10

@@ -1,13 +1,6 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Spec.SAT.IPASIR where
 
 import qualified Data.Map as Map
@@ -18,11 +11,11 @@ import Control.Monad.Trans.State.Lazy
 import SAT.IPASIR
 
 
-data MySolver (lc :: * -> *) l = MySolver deriving Show
+data MySolver v = MySolver deriving Show
 data MyMarker = MyMarker
 
-instance Ord v => MSolver MySolver LitCache v where
-    type Marker MySolver LitCache = MyMarker
+instance MSolver MySolver where
+    type Marker MySolver = MyMarker
     newMSolver _ = do
         oldSolvers <- get 
         put $ oldSolvers <> pure MySolver

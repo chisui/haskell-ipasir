@@ -1,19 +1,27 @@
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE StandaloneDeriving #-}
 module SAT.IPASIR.PseudoBoolean.State
-    ( WeightedVariable(..)
-    ) where
-
-import SAT.IPASIR
+    () where
 
 import Control.Monad.Trans.State.Lazy
+
+import qualified Data.Map as Map
+
+import SAT.IPASIR
+import SAT.IPASIR.HelperVarCache
 
 import SAT.PseudoBoolean.Config 
 import qualified SAT.PseudoBoolean.C as C
 
-data WeightedVariable v where
-    (:%:) :: Ord v => v -> Integer -> WeightedVariable v
 
-deriving instance Eq   (WeightedVariable v)
-deriving instance Ord  (WeightedVariable v)
-deriving instance Show v => Show (WeightedVariable v)
+type WeightedLits v = Map.Map v Integer
+
+data PBConstraint v a = PBConstraint
+    { config :: Config a
+    , vars   :: WeightedLits
+    , comp   :: C.Comp
+    , lower  :: Word
+    , upper  :: Word
+    } deriving (Eq, Show)
+
+type PBEncoder cache l v r = StateT (cache l v, ForeignPtr C.C_Encoder) IO r
+
+newEncoder :: (Ord v, HelperVarCache cache l v) => PBConstraint v a -> cache l v -> PBEncoder cache l v r 

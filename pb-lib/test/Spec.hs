@@ -1,16 +1,21 @@
 module Main (main) where
 
+import Control.Monad.Trans.Class
+
 import Data.Word
 import SAT.PseudoBoolean
 
 import Debug.Trace
 
 main :: IO ()
-main = mapM_ print $ runEncoder (defaultConfig :: Config PseudoBoolean) lits CBoth 5 100 4 $ do
+main = runEncoder (defaultConfig :: Config PseudoBoolean) lits CBoth 5 100 4 $ do
     clauses0 <- getClauses
     clauses1 <- encodeNewGeq 10
     clauses2 <- encodeNewLeq 50
-    return clauses1 -- (clauses0, clauses1, clauses2)
+    lift $ print clauses0
+    lift $ print clauses1
+    lift $ print clauses2
+    return ()
 
 
 lits =

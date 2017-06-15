@@ -15,6 +15,7 @@ import Control.Comonad
 
 import SAT.IPASIR.Literals
 import SAT.IPASIR.Clauses
+import SAT.IPASIR.VarCache
 import SAT.IPASIR.Solver (HasVariables(..))
 
 data Formula v 
@@ -32,7 +33,7 @@ instance (IsString v) => IsString (Formula v) where
 
 instance (Ord v) => HasVariables (Formula v) where
     type VariableType (Formula v) = Ext v
-    getVars = nub . (map extract) . concat . formulaToCNF
+    getVars vc = undefined -- nub . (map extract) . concat . formulaToCNF
 
 notB (Not x) = x
 notB f       = Not f

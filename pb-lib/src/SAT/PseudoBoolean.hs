@@ -8,7 +8,8 @@ module SAT.PseudoBoolean
     , getClauses
     ) where
 
-import Control.Monad.Trans.State
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Lazy
 import System.IO.Unsafe
 
 import Foreign.ForeignPtr
@@ -21,20 +22,17 @@ import SAT.PseudoBoolean.Config as Export
 import SAT.PseudoBoolean.C.Types.WeightedLit as Export
 
 
-type Encoder a = State (ForeignPtr C.C_Encoder) a
+type Encoder a = StateT (ForeignPtr C.C_Encoder) IO a
 
-runEncoder :: C.CardinalityMethod a => Config a -> [C.WeightedLit] -> C.Comp -> Word64 -> Word64 -> Int -> Encoder b -> b
-runEncoder config lits comp lower upper firstFree body = unsafePerformIO $ do 
+runEncoder :: C.CardinalityMethod a => Config a -> [C.WeightedLit] -> C.Comp -> Word64 -> Word64 -> Int -> Encoder b -> IO b
+runEncoder config lits comp lower upper firstFree body = do 
     e <- C.encoder config lits comp lower upper firstFree
-    return $ evalState body e
+    evalStateT body e
 
 withEncoder body = do
-    modify' perform
-    enc <- get
-    return $ unsafePerformIO $ C.getClauses enc
-    where
-        perform enc = body' enc `seq` enc
-        body' = unsafePerformIO . body
+    encoder <- get
+    lift $ body encoder
+    lift $ C.getClauses encoder
 
 encodeNewGeq :: Word64 -> Encoder [[Int32]]
 encodeNewGeq bound = withEncoder (`C.encodeNewGeq` bound)

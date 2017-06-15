@@ -27,50 +27,51 @@ import Data.Maybe
 import qualified Data.Map as Map
 
 import SAT.IPASIR.Api
-import SAT.IPASIR.LiteralCache
 import SAT.IPASIR.Literals
+import SAT.IPASIR.VarCache
 
 type Val = Maybe Bool
-type Solution v = Map.Map v Val
-type Conflict v = Map.Map v Bool
+type Solution v = Map.Map (Var v) Val
+type Conflict v = Map.Map (Var v) Bool
 type ESolution v = Either (Conflict v) (Solution v)
 
 class (Ord (VariableType c)) => HasVariables c where
     type VariableType c
-    getVars :: c -> [VariableType c]
+    getVars :: c -> VarCache (VariableType c) -> [Var (VariableType c)]
 
 class (HasVariables c) => Clauses s c where
-    addClauses :: (LiteralCache lc (VariableType c), MSolver s lc (VariableType c), Traversable m, Clauses s c) => c -> StateT (m (s lc (VariableType c))) IO ()
+    addClauses :: (MSolver s, Traversable m, Clauses s c) => c -> StateT (m (s (VariableType c))) IO ()
 
-class (LiteralCache lc v, Ord v) => MSolver s lc v where
+class MSolver (s :: * -> *) where
 
-    type family Marker s lc = marker | marker -> s lc
+    type family Marker s = marker | marker -> s
 
-    newMSolver :: (Applicative m, Monoid (m (s lc v))) => Marker s lc -> StateT (m (s lc v)) IO ()
-    mSolve :: Traversable m => StateT (m (s lc v)) IO (m (ESolution v))
-    mSolveAllForVars :: Traversable m => [v] -> StateT (m (s lc v)) IO (m (Conflict v, [Solution v]))
+    newMSolver :: (Ord v, Applicative m, Monoid (m (s v))) => Marker s -> StateT (m (s v)) IO ()
+    mSolve :: (Ord v, Traversable m) => StateT (m (s v)) IO (m (ESolution v))
+    mSolveAllForVars :: (Ord v, Traversable m) => [Var v] -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
 
-class (MSolver s lc v) => Solver s lc v where
-    solve :: (Clauses s c, v ~ VariableType c) => Marker s lc -> c -> ESolution v
+class (MSolver s) => Solver s where
+    
+    solve :: (Clauses s c, v ~ VariableType c, Ord v) => Marker s -> c -> ESolution v
     solve m c = runIdentity $ unsafePerformIO $ runSolver m $ do
         addClauses c
         mSolve
 
-    solveAllForVars' :: (Clauses s c, VariableType c ~ v) => Marker s lc -> c -> [v] -> (Conflict v, [Solution v])
+    solveAllForVars' :: (Ord v, Clauses s c, VariableType c ~ v) => Marker s -> c -> [Var v] -> (Conflict v, [Solution v])
     solveAllForVars' m c ls = runIdentity $ unsafePerformIO $ runSolver m $ do
         addClauses c
         mSolveAllForVars ls
 
-    solveAllForVars :: (Clauses s c, VariableType c ~ v) => Marker s lc -> c -> [v] -> [Solution v]
+    solveAllForVars :: (Clauses s c, VariableType c ~ v) => Marker s -> c -> [Var v] -> [Solution v]
     solveAllForVars m c ls = snd $ solveAllForVars' m c ls
-    solveAll :: (Clauses s c, VariableType c ~ v) => Marker s lc -> c -> [Solution v]
-    solveAll m c = solveAllForVars m c $ getVars c
+    solveAll :: (Clauses s c, VariableType c ~ v) => Marker s -> c -> [Solution v]
+    solveAll m c = solveAllForVars m c $ getVars c emptyCache
 
 
 runSolver' :: (Monoid a, Monad m) => StateT a m b -> m b
 runSolver' s = evalStateT s mempty
 
-runSolver :: (MSolver s lc v, Ord v) => Marker s lc -> StateT (Identity (s lc v)) IO a -> IO a
+runSolver :: (MSolver s, Ord v) => Marker s -> StateT (Identity (s v)) IO a -> IO a
 runSolver m s = do
     (Just solver) <- getLast <$> execStateT (newMSolver m) mempty
     evalStateT s (Identity solver)

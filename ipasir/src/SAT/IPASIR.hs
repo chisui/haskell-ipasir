@@ -1,13 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE InstanceSigs #-}
 module SAT.IPASIR
     ( module Export
     ) where
@@ -17,6 +7,8 @@ import SAT.IPASIR.Literals as Export
 import SAT.IPASIR.IpasirSolver as Export
 import SAT.IPASIR.Solver as Export
 import SAT.IPASIR.LiteralCache as Export
+import SAT.IPASIR.HelperVarCache as Export
+import SAT.IPASIR.ManagedLitCache as Export
 import SAT.IPASIR.Formula as Export (
         Formula(..),
         notB,

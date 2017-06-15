@@ -16,7 +16,8 @@ import Control.Monad.Trans.State.Lazy
 import SAT.IPASIR
 import SAT.IPASIR.Cryptominisat.C
 
-cryptoMiniSat :: IpasirSolver CryptoMiniSat LitCache
+
+cryptoMiniSat :: IpasirSolver CryptoMiniSat
 cryptoMiniSat = undefined
 
 instance Ord v => Clauses (MIpasirSolver CryptoMiniSat) (Formula v) where
@@ -32,8 +33,8 @@ instance Ord v => Clauses (MIpasirSolver CryptoMiniSat) (Formula v) where
                 cryptoAddXorClauses xors cSolver
                 return (MIpasirSolver cSolver litCache'')
                 where
-                    (litCache',  ors)      = clausesToIntClauses litCache  rawOrs
-                    (litCache'', xorsLits) = clausesToIntClauses litCache' wrappedXors
+                    (litCache',  ors)      = clausesToInt litCache  rawOrs
+                    (litCache'', xorsLits) = clausesToInt litCache' wrappedXors
                     xors = zipWith clauseToEXOrClause rawXors xorsLits
                     clauseToEXOrClause raw lits = raw $> map extract lits
                     wrappedXors = map return . extract <$> rawXors

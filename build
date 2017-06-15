@@ -1,8 +1,8 @@
 #! /bin/sh
-rm -rf .stack-work/
-rm -rf ipasir/.stack-work/
-rm -rf ipasir-cryptominisat/.stack-work/
-rm -rf pb-lib/.stack-work/
+#rm -rf .stack-work/
+#rm -rf ipasir/.stack-work/
+#rm -rf ipasir-cryptominisat/.stack-work/
+#rm -rf pb-lib/.stack-work/
 stack install --test --extra-lib-dirs=$PWD/ipasir-cryptominisat/lib/linux/ --extra-lib-dirs=$PWD/pb-lib/lib/linux/
 
 cat .stack-work/logs/ipasir-cryptominisat-0.1.0.0-test.log
