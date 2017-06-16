@@ -9,6 +9,8 @@ import Data.List.Split
 import Control.Arrow
 import qualified Data.List.Split as Split
 
+import Control.Monad.Trans.State
+
 import SAT.IPASIR.Formula
 import SAT.IPASIR.Clauses
 import SAT.IPASIR.Literals
@@ -177,11 +179,11 @@ showFormulaTransformation TSAfterDemorgen formula = showFormula $ demorgen $ rFo
 showFormulaTransformation TSXCNF          formula = showFormula normalized
     where
         normalized = normalformToFormula normalform
-        normalform = formulaToNormalform formula
+        normalform = evalState (formulaToNormalform formula) emptyCache
 showFormulaTransformation TSCNF           formula = showFormula cnf
     where
         cnf        = normalformToFormula normalform
-        normalform = (formulaToCNF formula,[])
+        normalform = (evalState (formulaToCNF formula) emptyCache,[])
 showFormulaTransformation TSHelperDefs formula = concat elems'''
     where
         cache         = emptyCache

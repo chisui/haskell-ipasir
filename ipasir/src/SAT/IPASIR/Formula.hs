@@ -242,24 +242,18 @@ instance Applicative (Trans v) where
 instance Functor (Trans v) where
   fmap = liftM
 
--- | Run the 'Trans' monad.
-runTrans :: Trans v a -> (a, [Clause (Var v)])
-runTrans = (`evalState` emptyCache) . getState
-
-formulaToNormalform :: Ord v => Formula v -> NormalForm (Var v)
-formulaToNormalform form = (or, xor)
-    where
-        (rest, clauses)   = runTrans $ transCnf $ demorgen $ rFormula form
-        (or1,xor1)        = partitionClauses True rest
-        (or2,xor2)        = partitionClauses True clauses
-        or                = or1  ++  or2
-        xor               = xor1 ++ xor2
+formulaToNormalform :: Ord v => Formula v -> State (VarCache v) (NormalForm (Var v))
+formulaToNormalform form = do
+    (rest, clauses) <- getState $ transCnf $ demorgen $ rFormula form
+    let (or1, xor1) = partitionClauses True rest
+    let (or2, xor2) = partitionClauses True clauses
+    return (or1 ++ or2, xor1 ++ xor2)
 
 normalformToCNF :: Ord v => NormalForm (Var v) -> CNF (Var v)
 normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)
 
-formulaToCNF :: Ord v => Formula v -> CNF (Var v)
-formulaToCNF = normalformToCNF . formulaToNormalform
+formulaToCNF :: Ord v => Formula v -> State (VarCache v) (CNF (Var v))
+formulaToCNF f = normalformToCNF <$> formulaToNormalform f
 
 normalformToFormula :: forall v. Ord v => NormalForm (Var v) -> Formula (Var v)
 normalformToFormula (or,xor)   = All $ orFormulas ++ xorFormulas
