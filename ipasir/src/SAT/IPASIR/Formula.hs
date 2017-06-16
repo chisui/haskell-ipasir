@@ -153,36 +153,23 @@ demorgen form = pdemorgen form
         ndemorgen (Some f) = DAll  $ map ndemorgen f
         ndemorgen (Odd (x:xs)) = DOdd $ map pdemorgen $ notB x : xs
 
-type Trans v a = State (VarCache v, [Clause (Var v)], [(Integer, Formula (Var v))]) a
+type Trans v a = State (VarCache v, [Clause (Var v)], [(Var v, DFormula (Var v))]) a
 
-addHelperInfo :: Integer -> Formula (Var v) -> Trans v ()
-addHelperInfo i f = do
-    (cache, clauses, defs) <- get
-    put (cache, clauses, (i,f):defs)
-    return ()   
+addDefinition :: Var v -> DFormula (Var v) -> Trans v ()
+addDefinition i f = modify (\(cache, clauses, defs) -> (cache, clauses, (i,f):defs))
 
 -- | Return a fresh Lit.
 freshLit :: Ord v => Trans v (Lit (Var v))
-freshLit = do
-    (cache, clauses, defs) <- get
-    let (newVar, newCache) = newHelper cache
-    put (newCache, clauses ,defs)
-    return $ Pos newVar
-
+freshLit = state (\(cache, clauses, defs) -> let (newVar, newCache) = newHelper cache
+                                             in  ( Pos newVar,(newCache, clauses ,defs) ) )
+                                       
 -- | Add one clause.
 addClause :: Clause (Var v) -> Trans v ()
 addClause clause = addClauses [clause]
 
 -- | Add some clauses.
 addClauses :: forall v. [Clause (Var v)] -> Trans v ()
-addClauses clauses = do
-    (cache, clauses', defs) <- get
-    put (cache, clauses ++ clauses', defs)
-    return ()
-    where
-        (orClauses, xorClauses) = partitionClauses False clauses
-        ors  = [ Or  x | x <- orClauses ]
-        xors = [ XOr x | x <- xorClauses ] 
+addClauses clauses = modify (\(cache, clauses', defs) -> (cache, clauses ++ clauses', defs)) 
 
 runTrans :: VarCache v -> Trans v [Clause (Var v)] -> (VarCache v, NormalForm (Var v))
 runTrans cache trans = (newCache, (or,xor) ) 
@@ -191,11 +178,17 @@ runTrans cache trans = (newCache, (or,xor) )
         cnf      = mainCNF++cnfs
         (or,xor) = partitionClauses True cnf
         
+runTransComplete :: VarCache v -> Trans v [Clause (Var v)] -> ([Clause (Var v)], VarCache v, [Clause (Var v)], [(Var v, DFormula (Var v))])
+runTransComplete cache trans = (mainCNF, newCache, cnfs, defs)
+    where
+        (mainCNF, (newCache, cnfs, defs) ) = runState trans (cache, [], [])
+        
 -- -----------------------------------------------------------------------------
-    
 
 formulaToNormalform :: Ord v => VarCache v -> Formula v -> (VarCache v, NormalForm (Var v))
-formulaToNormalform cache form =  runTrans cache $ transCnf $ demorgen $ rFormula form
+formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgen $ rFormula form
+    where
+        cache' = snd $ newVars cache $ getVars form
 
 normalformToCNF :: Eq v => NormalForm (Var v) -> CNF (Var v)
 normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)
@@ -305,11 +298,14 @@ lit_of_cnf ds = do
 -- | Convert a conjunction of Lits to a single Lit.
 litOfAnd :: Ord v => [Lit (Var v)] -> Trans v (Lit (Var v))
 litOfAnd [l] = return l
-litOfAnd cs = do
+litOfAnd ds = do
     x :: Lit (Var v) <- freshLit
+
     -- Define x <-> c1 ∧ ... ∧ cn
-    addClauses [ Or [neg x, c] | c <- cs ]
-    addClause $ Or $ x : [neg c | c <- cs]
+    addDefinition (extract x) (DAll $ map DVar ds) -- Just for printing
+    
+    addClauses [ Or [neg x, c] | c <- ds ]
+    addClause $ Or $ x : [neg c | c <- ds]
     return x
 
 -- | Convert a disjunction of Lits to a single Lit.
@@ -317,6 +313,7 @@ litOfOr :: Ord v => [Lit (Var v)] -> Trans v (Lit (Var v))
 litOfOr [l] = return l
 litOfOr ds = do
     x <- freshLit
+    addDefinition (extract x) (DSome $ map DVar ds) -- Just for printing
     -- Define x <-> d1 ∨ ... ∨ dn
     addClauses [ Or [x, neg d] | d <- ds]
     addClause $ Or $ neg x : ds
@@ -328,6 +325,12 @@ litOfXor (Pos [l]) = return $ Pos l
 litOfXor (Neg [l]) = return $ Neg l
 litOfXor ds = do
     z <- freshLit
+    
+    let defForPring = case ds of
+            (Pos l)      -> map Pos l
+            (Neg (x:xs)) -> Neg x : map Pos xs
+    addDefinition (extract z) (DOdd $ map DVar defForPring) -- Just for printing
+    
     -- Define z <-> x1 ⊕ ... ⊕ xn 
     addClause $ XOr $ neg $ ((extract z:) <$> ds)
     return z

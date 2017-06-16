@@ -31,7 +31,7 @@ tester10 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All 
 tester11 = Some [Odd [Some [Var 3, Var 4], Var 2],  Var 1]
 tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Var 2]]
 
-data TransformationStep = TSNormal | TSReduced | TSAfterDemorgen | TSHelperDefs | TSHelperWise | TSHelperCNF | TSXCNF | TSCNF
+data TransformationStep = TSNormal | TSReduced | TSDemorgen | TSHelperDefs | TSXCNF | TSCNF
 
 class TraversableFormula (f :: * -> *) where
     isNegation  :: f v -> Bool
@@ -172,31 +172,36 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         varsFinalCount   = length $ nub $ concat $ ors++xors
 -}
 
-showFormulaTransformation :: forall v. (Show v,Ord v) => TransformationStep -> Formula v -> String
-showFormulaTransformation TSNormal        formula = showFormula formula
-showFormulaTransformation TSReduced       formula = showFormula $ rFormula formula
-showFormulaTransformation TSAfterDemorgen formula = showFormula $ demorgen $ rFormula formula
-showFormulaTransformation TSXCNF          formula = showFormula $ normalformToFormula $ snd $ formulaToNormalform emptyCache formula
-showFormulaTransformation TSCNF           formula = showFormula $ normalformToFormula $ (snd $ formulaToCNF emptyCache formula,[])
-{-showFormulaTransformation TSHelperDefs formula = concat elems'''
+showFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> String
+showFormulaTransformation' showE TSNormal     formula = showFormula formula
+showFormulaTransformation' showE TSReduced    formula = showFormula $ rFormula formula
+showFormulaTransformation' showE TSDemorgen   formula = showFormula $ demorgen $ rFormula formula
+showFormulaTransformation' showE TSXCNF       formula = showFormulaEither showE $ normalformToFormula $ snd $ formulaToNormalform emptyCache formula
+showFormulaTransformation' showE TSCNF        formula = showFormulaEither showE $ normalformToFormula $ (snd $ formulaToCNF emptyCache formula,[])
+showFormulaTransformation' showE TSHelperDefs formula = mainCNFString ++ concat helperStrings
     where
+        (main, newCache, cnfs, defs) = runTransComplete cache trans
         cache         = emptyCache
-        (_,main,defs) = getHelperDefs cache $ demorgen $ rFormula formula
-        elems         = ("MAIN: \n", main) : first ( (++" :<=> \n") . show) `map` defs 
-        elems'        = second showFormula `map` elems
-        elems''       = second ((tab++) . intercalate ('\n':tab) . splitOn "\n") `map` elems'
-        elems'''      = map (\e -> '\n' : fst e ++ "\n" ++ snd e ++ "\n") elems''
--}
+        trans         = transCnf $ demorgen $ rFormula formula
+        helperStrings = map (\(name,formula) -> (either showE undefined name) ++ "  :<=>  " ++ showFormulaEither showE formula ++ "\n") $ reverse defs
+        mainCNFString = printDef "YES" $ normalformToFormula $ partitionClauses True main
+        
+        printDef name formula = name ++ "\n" ++ i (showFormulaEither showE formula) ++ "\n\n" 
+            where
+                i = indent (tab++tab) (take (length (tab++tab)) $ " :<=>"++repeat ' ')
+        indent s sFirst string = intercalate "\n" $ (sFirst ++ head lines) : (map (s++) $ tail lines)
+            where
+                lines = splitOn "\n" string
+
 showFormula :: (TraversableFormula f, Show v) => f v -> String
 showFormula = showFormula' tab showElem
 
-showFormulaEither :: Show v => (Word -> String) -> Formula (Var v) -> String
+showFormulaEither :: (TraversableFormula f, Show v) => (Word -> String) -> f (Var v) -> String
 showFormulaEither showHelper = showFormula' tab shower
     where
     --    show :: Formula (ELit v) -> String
-        shower (Var (Left i))  =  showHelper i
-        shower (Var (Right e)) = show e
-        shower x                     = showElem x
+        shower x = maybe (showElem x) (either showHelper show) (unpackVar x)
+
 
 showFormula' :: forall f v. (TraversableFormula f) =>  String -> (f v -> String) -> f v -> String
 showFormula' tab showFunction f
