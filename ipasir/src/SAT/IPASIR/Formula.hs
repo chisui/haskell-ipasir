@@ -16,12 +16,10 @@ import qualified Data.Map as Map
 import Control.Monad
 import Control.Monad.Trans.State.Lazy
 import Control.Comonad
-import Data.Foldable
 
 import SAT.IPASIR.Literals
 import SAT.IPASIR.Clauses
 -- import SAT.IPASIR.Solver (HasVariables(..))
-import SAT.IPASIR.HelperVarCache
 import SAT.IPASIR.VarCache
 
 data Formula v 
@@ -38,16 +36,16 @@ instance (IsString v) => IsString (Formula v) where
     fromString = Var . fromString
 
 instance Foldable Formula where
-    foldMap g (Var v) = f v
-    foldMap _ Yes = mempty
-    foldMap _ No = mempty
-    foldMap g (Not f) = foldMap g f
+    foldMap g (Var v)   = f v
+    foldMap _ Yes       = mempty
+    foldMap _ No        = mempty
+    foldMap g (Not f)   = foldMap g f
     foldMap g (All  fs) = foldMap g $ map (foldMap g) fs
     foldMap g (Some fs) = foldMap g $ map (foldMap g) fs
     foldMap g (Odd  fs) = foldMap g $ map (foldMap g) fs
 
-
--- getVars   = nub . (map extract) . concat . formulaToCNF
+getVars :: (Applicative f, Monoid (m v)) => Formula v -> f v
+getVars = foldMap pure 
 
 notB (Not x) = x
 notB f       = Not f
