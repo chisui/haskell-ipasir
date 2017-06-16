@@ -8,20 +8,10 @@ import Data.Maybe
 
 data Clause v      = Or (OrClause v) | XOr (XOrClause v)
     deriving (Show, Eq, Ord)
-
-type EClause v     = Clause (Ext v)
-
 type OrClause v    = [Lit v]
 type XOrClause v   = Lit [v]
-
-type EOrClause v   = [ELit v]
-type EXOrClause v  = Lit [Ext v]
-
 type NormalForm v  = ([OrClause v], [XOrClause v])
-type ENormalForm v = ([EOrClause v], [EXOrClause v])
-
 type CNF v         = [ OrClause v]
-type ECNF v        = [EOrClause v]
 
 getLits :: Clause v -> [Lit v]
 getLits ( Or a) = a

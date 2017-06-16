@@ -32,6 +32,8 @@ instance (LiteralCache lc v2, HelperVarCache hvc v1 v2) => HelperVarCache (Manag
         (newHVC, helpers)        = newHelpers hvc space number
         newLC                    = insertVars lc helpers
     getHelpers cache space       = getHelpers (getHVC cache) space
+    toVar = undefined
+    toHelper = undefined
 
 instance {-# OVERLAPPABLE #-} (LiteralCache lc v2, HelperVarCache hvc v1 v2) => LiteralCache (ManagedLitCache lc hvc v1) v2 where
     emptyCache           = error "Not possible to create a ManagedLitCache by emptyCache. Use newHelperVarCache instead."

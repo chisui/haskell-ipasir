@@ -21,9 +21,6 @@ data Lit a
     | Neg a
         deriving (Eq, Functor)
 
-type Ext l = Either Integer l
-type ELit l = Lit (Ext l)
-
 -- | We order literals first by variable, then by sign, so that dual
 -- literals are neighbors in the ordering.
 instance (Ord a) => Ord (Lit a) where
