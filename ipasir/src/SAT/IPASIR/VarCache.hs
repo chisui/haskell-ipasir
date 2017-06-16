@@ -11,13 +11,19 @@ module SAT.IPASIR.VarCache
     , varToInt
     , clausesToInt
     , intToVar
+    , showIntToVar
+    , showVarToInt
     ) where
 
 import qualified Data.Map    as Map
 import qualified Data.Vector as Vec
+import Data.List hiding (insert)
+import Data.List.Split
+import Data.Bifunctor
+import Control.Lens
 
 import SAT.IPASIR.Literals
-import Data.List hiding (insert)
+
 
 
 type Var v = Either Word v
@@ -47,7 +53,7 @@ data VarCache v = VarCache
     { i2v :: Vec.Vector (Var v)
     , v2i :: Map.Map (Var v) Word
     , nextHelper :: Word
-    } deriving Show
+    }
 
 -- | Create an empty cache of where the label type is @l@ and the Variable
 -- type is @Either l Word@.
@@ -113,12 +119,18 @@ insert vc v
             { i2v = i2v vc `Vec.snoc` v
             , v2i = Map.insert v (numVars vc) (v2i vc)
             })
+            
+instance (Ord v, Show v) => Show (VarCache v) where
+--    show cache = intercalate "\n" $ zipWith (++) (i $ showIntToVar cache) (map tail $ i $ showVarToInt cache)
+    show = unlines . map (uncurry (++) . second tail) . uncurry zip . bimap (i.showIntToVar) (i.showVarToInt) . (\x->(x,x))
+        where
+            i          = splitOn "\n"
         
 showIntToVar :: Show v => VarCache v -> String
 showIntToVar lcache = intercalate "\n" (seperator:lines) ++ '\n':seperator
     where
         lastIndex    = numVars lcache
-        indices      = [1..lastIndex]
+        indices      = [0..lastIndex-1]
         lengthStrInd = length $ show lastIndex
         strIndices   = map resizeIndex indices
         resizeIndex i= replicate (lengthStrInd - length (show i)) ' ' ++ show i
@@ -134,7 +146,7 @@ showVarToInt :: (Ord v, Show v) => VarCache v -> String
 showVarToInt lcache  = seperator ++ '\n' : text ++ '\n' : seperator
     where
         lastIndex    = numVars lcache
-        tupels       = [ (i,intToVar lcache i) | i <- [1..lastIndex]]
+        tupels       = [ (i,intToVar lcache i) | i <- [0..lastIndex-1]]
         (index,var)  = unzip $ sortBy (\a b -> compare (snd a) (snd b)) tupels
         strIndex     = sameSizer False index
         strVars      = sameSizer True var
