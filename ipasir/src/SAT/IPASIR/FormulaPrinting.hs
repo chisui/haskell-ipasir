@@ -12,7 +12,7 @@ import qualified Data.List.Split as Split
 import SAT.IPASIR.Formula
 import SAT.IPASIR.Clauses
 import SAT.IPASIR.Literals
-import SAT.IPASIR.HelperVarCache
+import SAT.IPASIR.VarCache
 
 tester1 = Var 1 &&* Not (Var 2) &&* (Var 1 ||* Var 2)
 tester2 = Var 1 &&* Var 2 &&* (Var 1 ->* Var 2) &&* Not (Var 2 ->* Var 1) 
@@ -184,7 +184,7 @@ showFormulaTransformation TSCNF           formula = showFormula cnf
         normalform = (formulaToCNF formula,[])
 showFormulaTransformation TSHelperDefs formula = concat elems'''
     where
-        cache         = newHelperVarCache Left Right :: HVC v (Either v Word)
+        cache         = emptyCache
         (_,main,defs) = getHelperDefs cache $ demorgen $ rFormula formula
         elems         = ("MAIN: \n", main) : first ( (++" :<=> \n") . show) `map` defs 
         elems'        = second showFormula `map` elems
@@ -194,7 +194,7 @@ showFormulaTransformation TSHelperDefs formula = concat elems'''
 showFormula :: (TraversableFormula f, Show v) => f v -> String
 showFormula = showFormula' tab showElem
 
-showFormulaEither :: Show v => (Integer -> String) -> Formula (Ext v) -> String
+showFormulaEither :: Show v => (Word -> String) -> Formula (Var v) -> String
 showFormulaEither showHelper = showFormula' tab shower
     where
     --    show :: Formula (ELit v) -> String

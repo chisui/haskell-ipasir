@@ -127,7 +127,7 @@ demorgen form = pdemorgen form
         ndemorgen (Some f) = DAll  $ map ndemorgen f
         ndemorgen (Odd (x:xs)) = DOdd $ map pdemorgen $ notB x : xs
 
-getHelperDefs :: forall v. Ord v => VarCache v -> DFormula v -> (Word, DFormula v, [(Var v, DFormula (Var v))])
+getHelperDefs :: forall v. Ord v => VarCache v -> DFormula v -> (Word, DFormula (Var v), [(Var v, DFormula (Var v))])
 getHelperDefs cache formula = undefined -- (numberHelper, main, helperDefs)
 {-
     where
