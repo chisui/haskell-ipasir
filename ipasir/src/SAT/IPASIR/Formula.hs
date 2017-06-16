@@ -16,6 +16,7 @@ import qualified Data.Map as Map
 import Control.Monad
 import Control.Monad.Trans.State.Lazy
 import Control.Comonad
+import Data.Foldable
 
 import SAT.IPASIR.Literals
 import SAT.IPASIR.Clauses
@@ -31,10 +32,19 @@ data Formula v
   | All  [Formula v]          -- ^ All are true.
   | Some [Formula v]          -- ^ At least one is true.
   | Odd  [Formula v]          -- ^ An odd number is /true/.
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Functor)  
 
 instance (IsString v) => IsString (Formula v) where
     fromString = Var . fromString
+
+instance Foldable Formula where
+    foldMap g (Var v) = f v
+    foldMap _ Yes = mempty
+    foldMap _ No = mempty
+    foldMap g (Not f) = foldMap g f
+    foldMap g (All  fs) = foldMap g $ map (foldMap g) fs
+    foldMap g (Some fs) = foldMap g $ map (foldMap g) fs
+    foldMap g (Odd  fs) = foldMap g $ map (foldMap g) fs
 
 
 -- getVars   = nub . (map extract) . concat . formulaToCNF
