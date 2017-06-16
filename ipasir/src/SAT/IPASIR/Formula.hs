@@ -223,15 +223,17 @@ oddToCNF clause = do
 -- | A monad for translation to CNF. This monad keeps track of two kinds
 -- of state: an integer counter to provide a supply of fresh
 -- variables, and a list of definitional clauses.
-data Trans v a = Trans (Integer -> (a, VarCache v, [EClause v], (Integer, Formula (Var v) ) ))
 
+
+
+{-
 instance Monad (Trans v) where
-  return a = Trans (\n -> (a, n, []))
+  return a = Trans (\n -> (a, n, [], []))
   (Trans f) >>= g = Trans (\n ->
                             let (a1, n1, l1, def1) = f n in
                             let Trans h = g a1 in
                             let (a2, n2, l2, def2) = h n1 in
-                            (a2, n2, l1 ++ l2, defs1 ++ defs2))
+                            (a2, n2, l1 ++ l2, def1 ++ def2))
   
 instance Applicative (Trans v) where
   pure = return
@@ -241,13 +243,76 @@ instance Functor (Trans v) where
   fmap = liftM
   
 -- | Run the 'Trans' monad.
-runTrans :: Trans v a -> (a, [EClause v])
+runTrans :: Trans v a -> (a, [Clause (Var v)])
 runTrans (Trans f) = (a, clauses)
   where
     (a, _, clauses, _) = f 0
 
+addHelperInfo :: Integer -> Formula (Var v) -> Trans v ()
+addHelperInfo i f = Trans (\n -> ( (), n, [], [(i, form)] ) )
 
-formulaToNormalform :: Eq v => Formula v -> ENormalForm v
+-- | Return a fresh Lit.
+freshLit :: Trans v (Lit (Var v))
+freshLit = Trans (\n -> (Pos (Left n), n+1, [], []))
+
+-- | Add one clause.
+addClause :: Clause (Var v) -> Trans v ()
+addClause clause = addClauses [clause]
+
+-- | Add some clauses.
+addClauses :: forall v. [Clause (Var v)] -> Trans v ()
+addClauses clauses = Trans (\n -> ((), n, ors ++ xors, []))
+    where
+        (orClauses, xorClauses) = partitionClauses False clauses
+        ors  = [ Or  x | x <- orClauses ]
+        xors = [ XOr x | x <- xorClauses ]
+
+addCnf :: [OrClause (Var v)] -> Trans v ()
+addCnf cs = Trans (\n -> ((), n, map Or cs, []))
+
+addXnf :: [XOrClause (Var v)] -> Trans v ()
+addXnf cs = Trans (\n -> ((), n, map XOr cs, []))    
+    
+-}
+
+type Trans v a = State (VarCache v, [Clause (Var v)], [(Integer, Formula (Var v))]) a
+
+addHelperInfo :: Integer -> Formula (Var v) -> Trans v ()
+addHelperInfo i f = Trans (\n -> ( (), n, [], [(i, form)] ) )
+
+-- | Return a fresh Lit.
+freshLit :: Trans v (Lit (Var v))
+freshLit = do
+    (cache, clauses', defs) <- get
+    let (newVar, newCache) = newHelper cache
+    put (newCache, Pos newVar, defs)
+    return ()
+
+-- | Add one clause.
+addClause :: Clause (Var v) -> Trans v ()
+addClause clause = addClauses [clause]
+
+-- | Add some clauses.
+addClauses :: forall v. [Clause (Var v)] -> Trans v ()
+addClauses clauses = do
+    (cache, clauses', defs) <- get
+    put (cache, clauses ++ clauses, defs)
+    return ()
+    where
+        (orClauses, xorClauses) = partitionClauses False clauses
+        ors  = [ Or  x | x <- orClauses ]
+        xors = [ XOr x | x <- xorClauses ]
+
+addCnf :: [OrClause (Var v)] -> Trans v ()
+addCnf cs = Trans (\n -> ((), n, map Or cs, []))
+
+addXnf :: [XOrClause (Var v)] -> Trans v ()
+addXnf cs = Trans (\n -> ((), n, map XOr cs, [])) 
+
+-- -----------------------------------------------------------------------------
+    
+
+formulaToNormalform :: Eq v => Formula v -> NormalForm (Var v)
 formulaToNormalform form = (or, xor)
     where
         (rest, clauses)   = runTrans $ transCnf $ demorgen $ rFormula form
@@ -256,48 +321,25 @@ formulaToNormalform form = (or, xor)
         or                = or1  ++  or2
         xor               = xor1 ++ xor2
 
-normalformToCNF :: Eq v => ENormalForm v -> ECNF v
+normalformToCNF :: Eq v => NormalForm (Var v) -> CNF (Var v)
 normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)
 
-formulaToCNF :: Eq v => Formula v -> ECNF v
+formulaToCNF :: Eq v => Formula v -> CNF (Var v)
 formulaToCNF = normalformToCNF . formulaToNormalform
 
-normalformToFormula :: forall v. ENormalForm v-> Formula (Ext v)
+normalformToFormula :: forall v. NormalForm (Var v)-> Formula (Var v)
 normalformToFormula (or,xor)   = All $ orFormulas ++ xorFormulas
     where
-        orFormulas  :: [Formula (Ext v)]
+        orFormulas  :: [Formula (Var v)]
         orFormulas   = [ Some $ map (transformLitOdd . (Var <$>)) clause | clause <-  or]
-        xorFormulas :: [Formula (Ext v)]
+        xorFormulas :: [Formula (Var v)]
         xorFormulas  = [ transformLitOdd $ ((Odd . map Var) <$> clause) | clause <- xor]
         transformLitOdd :: Lit (Formula a) -> Formula a
         transformLitOdd (Pos form) = form
         transformLitOdd (Neg form) = Not form
         
 
-addHelperInfo :: Integer -> Formula (Var v) -> Trans v ()
-addHelperInfo i f = Trans (\n -> ( (), n, [], [(i, form)] ) )
 
--- | Return a fresh Lit.
-freshLit :: Trans v (ELit v)
-freshLit = Trans (\n -> (Pos (Left n), n+1, [], []))
-
--- | Add one clause.
-addClause :: EClause v -> Trans v ()
-addClause clause = addClauses [clause]
-
--- | Add some clauses.
-addClauses :: forall v. [EClause v] -> Trans v ()
-addClauses clauses = Trans (\n -> ((), n, ors ++ xors, []))
-    where
-        (orClauses, xorClauses) = partitionClauses False clauses
-        ors  = [ Or  x | x <- orClauses ]
-        xors = [ XOr x | x <- xorClauses ]
-
-addCnf :: [EOrClause v] -> Trans v ()
-addCnf cs = Trans (\n -> ((), n, map Or cs, []))
-
-addXnf :: [EXOrClause v] -> Trans v ()
-addXnf cs = Trans (\n -> ((), n, map XOr cs, []))
 
 partitionList :: (DFormula v -> (Bool,[DFormula v])) -> [DFormula v] -> ([Lit v], [DFormula v])
 partitionList f []          = ([],[])
@@ -334,16 +376,16 @@ partitionOdd = partitionList checker
 
 type Env v = Map.Map Integer (Lit v)
 
-lit2ELit :: Lit v -> ELit v
+lit2ELit :: Lit v -> Lit (Var v)
 lit2ELit (Pos x) = Pos $ Right x
 lit2ELit (Neg x) = Neg $ Right x
 
-transCnf :: DFormula v -> Trans v [EClause v]
+transCnf :: DFormula v -> Trans v [Clause (Var v)]
 transCnf (DVar (Pos v) ) = return [Or [Pos (Right v)]]
 transCnf (DVar (Neg v) ) = return [Or [Neg (Right v)]]
 
 transCnf (DAll l) = do
-    a :: [[EClause v]] <- mapM transCnf l 
+    a :: [[Clause (Var v)]] <- mapM transCnf l 
 --    addClauses a
     return $ concat a
 
@@ -365,19 +407,19 @@ transLit a = do
     litOfNormalForm cnf
 
 -- | Convert a CNF to a single Lit.
-litOfNormalForm :: forall v. [EClause v] -> Trans v (ELit v)
+litOfNormalForm :: forall v. [Clause (Var v)] -> Trans v (Lit (Var v))
 litOfNormalForm clauses = do
     let (ors, xors) = partitionClauses False clauses
---    let orLits  = map getLits ors  :: [[ELit v]]
---    let xorLits = map getLits xors :: [Lit [Ext v]]
+--    let orLits  = map getLits ors  :: [[Lit (Var v)]]
+--    let xorLits = map getLits xors :: [Lit [Var v]]
   
-    orHelper  :: [ELit v] <- mapM litOfOr ors
-    xorHelper :: [ELit v] <- mapM litOfXor xors
+    orHelper  :: [Lit (Var v)] <- mapM litOfOr ors
+    xorHelper :: [Lit (Var v)] <- mapM litOfXor xors
 
     litOfAnd $ orHelper ++ xorHelper
 
 -- | Convert a CNF to a single Lit.
-{-lit_of_cnf :: [[ELit v]] -> Trans v (ELit v)
+{-lit_of_cnf :: [[Lit (Var v)]] -> Trans v (Lit (Var v))
 lit_of_cnf ds = do
   xs <- sequence (map litOfOr ds)
   y <- litOfand xs
@@ -385,7 +427,7 @@ lit_of_cnf ds = do
 -}
 
 -- | Convert a conjunction of Lits to a single Lit.
-litOfAnd :: [ELit v] -> Trans v (ELit v)
+litOfAnd :: [Lit (Var v)] -> Trans v (Lit (Var v))
 litOfAnd [l] = return l
 litOfAnd cs = do
     x <- freshLit
@@ -395,7 +437,7 @@ litOfAnd cs = do
     return x
 
 -- | Convert a disjunction of Lits to a single Lit.
-litOfOr :: [ELit v] -> Trans v (ELit v)
+litOfOr :: [Lit (Var v)] -> Trans v (Lit (Var v))
 litOfOr [l] = return l
 litOfOr ds = do
     x <- freshLit
@@ -405,7 +447,7 @@ litOfOr ds = do
     return x
 
 -- | Convert an exclusive or of two Lits to a single Lit.
-litOfXor :: Lit [Ext v] -> Trans v (ELit v)
+litOfXor :: Lit [Var v] -> Trans v (Lit (Var v))
 litOfXor (Pos [l]) = return $ Pos l
 litOfXor (Neg [l]) = return $ Neg l
 litOfXor ds = do
