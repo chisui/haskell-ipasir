@@ -16,8 +16,6 @@ module SAT.IPASIR.VarCache
 import qualified Data.Map    as Map
 import qualified Data.Vector as Vec
 
-import Control.Monad.Trans.State
-
 import SAT.IPASIR.Literals
 
 
@@ -32,13 +30,13 @@ type Var v = Either Word v
 --
 -- @numVars emptyCache == 0@
 --
--- @numVars $ execState (newVar v) emptyCache = 1@
+-- @numVars $ snd $ newVar emptyCache v  = 1@
 --
--- @evalState (newVar v) emptyCache = Left v@
+-- @fst $ newVar emptyCache v = Left v@
 --
--- @numVars $ execState newHelpter emptyCache = 1@
+-- @numVars $ snd $ newHelper emptyCache = 1@
 --
--- @evalState newHelpter emptyCache = Right i@
+-- @fst $ newHelper emptyCache = Right i@
 --
 -- @intToVar . varToInt = id@
 --
@@ -59,25 +57,30 @@ emptyCache = VarCache Vec.empty Map.empty 0
 
 -- | insert a label into the cache and returns the resulting variable.
 -- If the label is already in the cache it is returned.
-newVar :: Ord v => v -> State (VarCache v) (Var v)
-newVar l = do
-    let v = Right l
-    insert v
+newVar :: Ord v => VarCache v -> v -> (Var v, VarCache v)
+newVar vc l = insert vc $ Right l
 
 -- | inserts all labels into the cache and returns the resulting variables
-newVars :: Ord v => [v] -> State (VarCache v) [Var v]
-newVars = mapM newVar
+newVars :: Ord v => VarCache v -> [v] -> ([Var v], VarCache v)
+newVars vc = foldl newVars' ([], vc)
+    where
+        newVars' (vs, vc') v = (v':vs, vc'')
+            where
+                (v', vc'') = newVar vc' v
 
 -- | create a new helper variable
-newHelper :: Ord v => State (VarCache v) (Var v)
-newHelper =  do
-    v <- Left . nextHelper <$> get
-    modify $ \ vc -> vc { nextHelper = nextHelper vc + 1 }
-    insert v
+newHelper :: Ord v => VarCache v -> (Var v, VarCache v)
+newHelper vc = insert vc' $ Left $ nextHelper vc
+    where
+        vc' = vc { nextHelper = nextHelper vc + 1 }
 
 -- | create @n@ new helper variables
-newHelpers :: Ord v => Word -> State (VarCache v) [Var v]
-newHelpers nr = const newHelper `mapM` [1..nr]
+newHelpers :: Ord v => VarCache v -> Word -> ([Var v], VarCache v)
+newHelpers vc nr = foldl newHelpers' ([], vc) [1..nr]
+    where
+        newHelpers' (vs, vc') v = (v':vs, vc'')
+            where
+                (v', vc'') = newHelper vc'
 
 -- | check how many variables are in the cache
 numVars :: VarCache v -> Word
@@ -102,10 +105,8 @@ intToVar :: VarCache v -> Word -> Var v
 intToVar vc = (i2v vc Vec.!) . fromEnum
 
 
-insert :: Ord v => Var v -> State (VarCache v) (Var v)
-insert v = do
-    modify $ \ vc -> vc 
+insert :: Ord v => VarCache v -> Var v -> (Var v, VarCache v)
+insert vc v = (v, vc 
         { i2v = i2v vc `Vec.snoc` v
         , v2i = Map.insert v (numVars vc) (v2i vc)
-        }
-    return v
+        })
