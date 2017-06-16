@@ -17,6 +17,7 @@ import qualified Data.Map    as Map
 import qualified Data.Vector as Vec
 
 import SAT.IPASIR.Literals
+import Data.List hiding (insert)
 
 
 type Var v = Either Word v
@@ -46,7 +47,7 @@ data VarCache v = VarCache
     { i2v :: Vec.Vector (Var v)
     , v2i :: Map.Map (Var v) Word
     , nextHelper :: Word
-    }
+    } deriving Show
 
 -- | Create an empty cache of where the label type is @l@ and the Variable
 -- type is @Either l Word@.
@@ -106,7 +107,48 @@ intToVar vc = (i2v vc Vec.!) . fromEnum
 
 
 insert :: Ord v => VarCache v -> Var v -> (Var v, VarCache v)
-insert vc v = (v, vc 
-        { i2v = i2v vc `Vec.snoc` v
-        , v2i = Map.insert v (numVars vc) (v2i vc)
-        })
+insert vc v
+    | Map.member v (v2i vc) = (v, vc)
+    | otherwise             = (v, vc 
+            { i2v = i2v vc `Vec.snoc` v
+            , v2i = Map.insert v (numVars vc) (v2i vc)
+            })
+        
+showIntToVar :: Show v => VarCache v -> String
+showIntToVar lcache = intercalate "\n" (seperator:lines) ++ '\n':seperator
+    where
+        lastIndex    = numVars lcache
+        indices      = [1..lastIndex]
+        lengthStrInd = length $ show lastIndex
+        strIndices   = map resizeIndex indices
+        resizeIndex i= replicate (lengthStrInd - length (show i)) ' ' ++ show i
+        vars         = map (intToVar lcache) indices
+        lengthStrVar = foldl max 0 $ map (length.show) vars
+        strVars      = map (take lengthStrVar.(++ repeat ' ').show) vars
+        line s1 s2   = "| " ++ s1 ++ " - " ++ s2 ++ " |"
+        lines        = zipWith line strIndices strVars
+        lineLength   = length $ head lines
+        seperator    = '+': replicate (lineLength-2) '-' ++ "+"
+        
+showVarToInt :: (Ord v, Show v) => VarCache v -> String
+showVarToInt lcache  = seperator ++ '\n' : text ++ '\n' : seperator
+    where
+        lastIndex    = numVars lcache
+        tupels       = [ (i,intToVar lcache i) | i <- [1..lastIndex]]
+        (index,var)  = unzip $ sortBy (\a b -> compare (snd a) (snd b)) tupels
+        strIndex     = sameSizer False index
+        strVars      = sameSizer True var
+        line s1 s2   = "| " ++ s1 ++ " - " ++ s2 ++ " |"
+        lines        = zipWith line strIndex strVars
+        lineLength   = length $ head lines
+        seperator    = '+': replicate (lineLength-2) '-' ++ "+"
+        text         = intercalate "\n" lines
+
+sameSizer :: Show a => Bool -> [a] -> [String]
+sameSizer left elems
+    | left       = zipWith (++) strElems spaces
+    | otherwise  = zipWith (++) spaces strElems 
+    where
+        strElems = map show elems
+        maxSize  = foldl max 0 $ map length strElems
+        spaces   = map (\e -> replicate (maxSize - length e) ' ') strElems
