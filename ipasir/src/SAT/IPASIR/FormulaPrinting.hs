@@ -176,15 +176,9 @@ showFormulaTransformation :: forall v. (Show v,Ord v) => TransformationStep -> F
 showFormulaTransformation TSNormal        formula = showFormula formula
 showFormulaTransformation TSReduced       formula = showFormula $ rFormula formula
 showFormulaTransformation TSAfterDemorgen formula = showFormula $ demorgen $ rFormula formula
-showFormulaTransformation TSXCNF          formula = showFormula normalized
-    where
-        normalized = normalformToFormula normalform
-        normalform = evalState (formulaToNormalform formula) emptyCache
-showFormulaTransformation TSCNF           formula = showFormula cnf
-    where
-        cnf        = normalformToFormula normalform
-        normalform = (evalState (formulaToCNF formula) emptyCache,[])
-showFormulaTransformation TSHelperDefs formula = concat elems'''
+showFormulaTransformation TSXCNF          formula = showFormula $ normalformToFormula $ snd $ formulaToNormalform emptyCache formula
+showFormulaTransformation TSCNF           formula = showFormula $ normalformToFormula $ (snd $ formulaToCNF emptyCache formula,[])
+{-showFormulaTransformation TSHelperDefs formula = concat elems'''
     where
         cache         = emptyCache
         (_,main,defs) = getHelperDefs cache $ demorgen $ rFormula formula
@@ -192,7 +186,7 @@ showFormulaTransformation TSHelperDefs formula = concat elems'''
         elems'        = second showFormula `map` elems
         elems''       = second ((tab++) . intercalate ('\n':tab) . splitOn "\n") `map` elems'
         elems'''      = map (\e -> '\n' : fst e ++ "\n" ++ snd e ++ "\n") elems''
-
+-}
 showFormula :: (TraversableFormula f, Show v) => f v -> String
 showFormula = showFormula' tab showElem
 

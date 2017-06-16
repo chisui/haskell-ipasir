@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module SAT.IPASIR.Formula where
 
@@ -11,6 +12,7 @@ import Data.Maybe
 import Data.List
 import Data.String (IsString(..))
 import Data.Foldable
+import Data.Bifunctor
 import qualified Data.Map as Map
 
 import Control.Monad
@@ -21,6 +23,7 @@ import SAT.IPASIR.Literals
 import SAT.IPASIR.Clauses
 -- import SAT.IPASIR.Solver (HasVariables(..))
 import SAT.IPASIR.VarCache
+
 
 data Formula v 
   = Var v                     -- ^ A variable.
@@ -36,15 +39,15 @@ instance (IsString v) => IsString (Formula v) where
     fromString = Var . fromString
 
 instance Foldable Formula where
-    foldMap g (Var v)   = f v
+    foldMap g (Var v)   = g v
     foldMap _ Yes       = mempty
     foldMap _ No        = mempty
     foldMap g (Not f)   = foldMap g f
-    foldMap g (All  fs) = foldMap g $ map (foldMap g) fs
-    foldMap g (Some fs) = foldMap g $ map (foldMap g) fs
-    foldMap g (Odd  fs) = foldMap g $ map (foldMap g) fs
+    foldMap g (All  fs) = fold $ map (foldMap g) fs
+    foldMap g (Some fs) = fold $ map (foldMap g) fs
+    foldMap g (Odd  fs) = fold $ map (foldMap g) fs
 
-getVars :: (Applicative f, Monoid (m v)) => Formula v -> f v
+getVars :: (Applicative f, Monoid (f v)) => Formula v -> f v
 getVars = foldMap pure 
 
 notB (Not x) = x
@@ -134,167 +137,21 @@ demorgen form = pdemorgen form
         ndemorgen (Some f) = DAll  $ map ndemorgen f
         ndemorgen (Odd (x:xs)) = DOdd $ map pdemorgen $ notB x : xs
 
-getHelperDefs :: forall hvc v1 v2. HelperVarCache hvc v1 v2 => hvc v1 v2 -> DFormula v1 -> (Word, DFormula v2, [(v2,DFormula v2)])
-getHelperDefs cache formula = (numberHelper, main, helperDefs)
-    where
-        numberHelper            = countHelper formula :: Word
-        (newCache, _, h)        = helpersInNewSpace cache numberHelper
-        f1                      = toVar cache         :: v1 -> v2
-        f2                      = toHelper cache      :: Word -> v2
-        (main, (_,helperDefs))  = runState (getHelperDefs' formula) (0, [])
-        getHelperDefs' :: DFormula v1 -> State (Word,[(v2,DFormula v2)]) (DFormula v2)
-        getHelperDefs' (DVar x)    = return $ DVar $ (f1 <$> x)
-        getHelperDefs' (DAll l)    = DAll <$> foldrM f [] l
-            where
-                f current work = do
-                    formOfCurrent          <- getHelperDefs' current
-                    return $ formOfCurrent:work
-        getHelperDefs' (DSome l)    = DSome <$> foldrM f [] l
-            where
-                f (DVar x) work  = return $ (DVar $ f1 <$> x) : work
-                f (DSome x) work = do
-
-                    formOfCurrent          <- getHelperDefs' (DSome x)
-                    (counter, pastHelpers) <- get
-                    return $ formOfCurrent:work
-                f current work = do -- need Helper
-
-                    formOfCurrent          <- getHelperDefs' current
-                    (counter, pastHelpers) <- get
-                    let helper     = h counter
-                    put (counter+1, (helper,formOfCurrent) : pastHelpers)
-                    return $  (DVar $ Pos helper) : work
-        getHelperDefs' (DOdd l)    = DOdd <$> foldrM f [] l
-            where
-                f (DVar x) work  = return $ (DVar $ f1 <$> x) : work
-                f (DOdd x) work = do
-                    formOfCurrent          <- getHelperDefs' (DOdd x)
-                    (counter, pastHelpers) <- get
-                    return $ formOfCurrent:work
-                f current work = do -- need Helper
-                    formOfCurrent          <- getHelperDefs' current
-                    (counter, pastHelpers) <- get
-                    let helper     = h counter
-                    put (counter+1, (helper,formOfCurrent) : pastHelpers)
-                    return $  (DVar $ Pos helper) : work
-             
-
-
-
-
-countHelper :: (Enum e,Num e) => DFormula v -> e
-countHelper (DVar  x) = toEnum 0
-countHelper (DAll  l) = sum $ map countHelper l
-countHelper (DSome l) = sum (countHelper `map` normals) + toEnum (length others)
-    where
-        normals       = filter    (not . isDVar)  l
-        others        = partition (not . isDSome) normals
-countHelper (DOdd l) = sum (countHelper `map` normals) + toEnum (length others)
-    where
-        normals       = filter    (not . isDVar) l
-        others        = partition (not . isDOdd) normals
-
-
-isDAll  (DAll _ ) = True
-isDAll _          = False
-isDSome (DSome _) = True
-isDSome _         = False
-isDOdd  (DOdd _ ) = True
-isDOdd _          = False
-isDVar  (DVar _ ) = True
-isDVar _          = False
-  
-
-        
-
-
-
-
-{-
-oddToCNF :: [Lit v] -> [[Lit v]]
-oddToCNF clause = do
-    let l = length clause
-    k <- map (2*) [0..div l 2]
-    clause `outOf` k
-    where
-        outOf :: [Lit v] -> Int -> [[Lit v]]
-        outOf clause 0 = [clause]
-        outOf []     _ = []
-        outOf (x:xs) k = (map (neg x :) left) ++ (map ( x:) right)
-            where
-                left  = outOf xs (k-1)
-                right = outOf xs k
--}    
--- ----------------------------------------------------------------------
--- * A monad for translation to CNF
-
--- | A monad for translation to CNF. This monad keeps track of two kinds
--- of state: an integer counter to provide a supply of fresh
--- variables, and a list of definitional clauses.
-
-
-
-{-
-instance Monad (Trans v) where
-  return a = Trans (\n -> (a, n, [], []))
-  (Trans f) >>= g = Trans (\n ->
-                            let (a1, n1, l1, def1) = f n in
-                            let Trans h = g a1 in
-                            let (a2, n2, l2, def2) = h n1 in
-                            (a2, n2, l1 ++ l2, def1 ++ def2))
-  
-instance Applicative (Trans v) where
-  pure = return
-  (<*>) = ap
-  
-instance Functor (Trans v) where
-  fmap = liftM
-  
--- | Run the 'Trans' monad.
-runTrans :: Trans v a -> (a, [Clause (Var v)])
-runTrans (Trans f) = (a, clauses)
-  where
-    (a, _, clauses, _) = f 0
-
-addHelperInfo :: Integer -> Formula (Var v) -> Trans v ()
-addHelperInfo i f = Trans (\n -> ( (), n, [], [(i, form)] ) )
-
--- | Return a fresh Lit.
-freshLit :: Trans v (Lit (Var v))
-freshLit = Trans (\n -> (Pos (Left n), n+1, [], []))
-
--- | Add one clause.
-addClause :: Clause (Var v) -> Trans v ()
-addClause clause = addClauses [clause]
-
--- | Add some clauses.
-addClauses :: forall v. [Clause (Var v)] -> Trans v ()
-addClauses clauses = Trans (\n -> ((), n, ors ++ xors, []))
-    where
-        (orClauses, xorClauses) = partitionClauses False clauses
-        ors  = [ Or  x | x <- orClauses ]
-        xors = [ XOr x | x <- xorClauses ]
-
-addCnf :: [OrClause (Var v)] -> Trans v ()
-addCnf cs = Trans (\n -> ((), n, map Or cs, []))
-
-addXnf :: [XOrClause (Var v)] -> Trans v ()
-addXnf cs = Trans (\n -> ((), n, map XOr cs, []))    
-    
--}
-
 type Trans v a = State (VarCache v, [Clause (Var v)], [(Integer, Formula (Var v))]) a
 
 addHelperInfo :: Integer -> Formula (Var v) -> Trans v ()
-addHelperInfo i f = Trans (\n -> ( (), n, [], [(i, form)] ) )
+addHelperInfo i f = do
+    (cache, clauses, defs) <- get
+    put (cache, clauses, (i,f):defs)
+    return ()   
 
 -- | Return a fresh Lit.
-freshLit :: Trans v (Lit (Var v))
+freshLit :: Ord v => Trans v (Lit (Var v))
 freshLit = do
-    (cache, clauses', defs) <- get
+    (cache, clauses, defs) <- get
     let (newVar, newCache) = newHelper cache
-    put (newCache, Pos newVar, defs)
-    return ()
+    put (newCache, clauses ,defs)
+    return $ Pos newVar
 
 -- | Add one clause.
 addClause :: Clause (Var v) -> Trans v ()
@@ -304,38 +161,33 @@ addClause clause = addClauses [clause]
 addClauses :: forall v. [Clause (Var v)] -> Trans v ()
 addClauses clauses = do
     (cache, clauses', defs) <- get
-    put (cache, clauses ++ clauses, defs)
+    put (cache, clauses ++ clauses', defs)
     return ()
     where
         (orClauses, xorClauses) = partitionClauses False clauses
         ors  = [ Or  x | x <- orClauses ]
-        xors = [ XOr x | x <- xorClauses ]
+        xors = [ XOr x | x <- xorClauses ] 
 
-addCnf :: [OrClause (Var v)] -> Trans v ()
-addCnf cs = Trans (\n -> ((), n, map Or cs, []))
-
-addXnf :: [XOrClause (Var v)] -> Trans v ()
-addXnf cs = Trans (\n -> ((), n, map XOr cs, [])) 
-
+runTrans :: VarCache v -> Trans v [Clause (Var v)] -> (VarCache v, NormalForm (Var v))
+runTrans cache trans = (newCache, (or,xor) ) 
+    where
+        (mainCNF, (newCache, cnfs, _) ) = runState trans (cache, [], [])
+        cnf      = mainCNF++cnfs
+        (or,xor) = partitionClauses True cnf
+        
 -- -----------------------------------------------------------------------------
     
 
-formulaToNormalform :: Eq v => Formula v -> NormalForm (Var v)
-formulaToNormalform form = (or, xor)
-    where
-        (rest, clauses)   = runTrans $ transCnf $ demorgen $ rFormula form
-        (or1,xor1)        = partitionClauses True rest
-        (or2,xor2)        = partitionClauses True clauses
-        or                = or1  ++  or2
-        xor               = xor1 ++ xor2
+formulaToNormalform :: Ord v => VarCache v -> Formula v -> (VarCache v, NormalForm (Var v))
+formulaToNormalform cache form =  runTrans cache $ transCnf $ demorgen $ rFormula form
 
 normalformToCNF :: Eq v => NormalForm (Var v) -> CNF (Var v)
 normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)
 
-formulaToCNF :: Eq v => Formula v -> CNF (Var v)
-formulaToCNF = normalformToCNF . formulaToNormalform
+formulaToCNF :: Ord v => VarCache v -> Formula v -> (VarCache v , CNF (Var v))
+formulaToCNF cache formula = second normalformToCNF $ formulaToNormalform cache formula
 
-normalformToFormula :: forall v. NormalForm (Var v)-> Formula (Var v)
+normalformToFormula :: forall v. NormalForm (Var v) -> Formula (Var v)
 normalformToFormula (or,xor)   = All $ orFormulas ++ xorFormulas
     where
         orFormulas  :: [Formula (Var v)]
@@ -388,7 +240,7 @@ lit2ELit :: Lit v -> Lit (Var v)
 lit2ELit (Pos x) = Pos $ Right x
 lit2ELit (Neg x) = Neg $ Right x
 
-transCnf :: DFormula v -> Trans v [Clause (Var v)]
+transCnf :: Ord v => DFormula v -> Trans v [Clause (Var v)]
 transCnf (DVar (Pos v) ) = return [Or [Pos (Right v)]]
 transCnf (DVar (Neg v) ) = return [Or [Neg (Right v)]]
 
@@ -415,7 +267,7 @@ transLit a = do
     litOfNormalForm cnf
 
 -- | Convert a CNF to a single Lit.
-litOfNormalForm :: forall v. [Clause (Var v)] -> Trans v (Lit (Var v))
+litOfNormalForm :: forall v. Ord v => [Clause (Var v)] -> Trans v (Lit (Var v))
 litOfNormalForm clauses = do
     let (ors, xors) = partitionClauses False clauses
 --    let orLits  = map getLits ors  :: [[Lit (Var v)]]
@@ -435,33 +287,33 @@ lit_of_cnf ds = do
 -}
 
 -- | Convert a conjunction of Lits to a single Lit.
-litOfAnd :: [Lit (Var v)] -> Trans v (Lit (Var v))
+litOfAnd :: Ord v => [Lit (Var v)] -> Trans v (Lit (Var v))
 litOfAnd [l] = return l
 litOfAnd cs = do
-    x <- freshLit
+    x :: Lit (Var v) <- freshLit
     -- Define x <-> c1 ∧ ... ∧ cn
-    addCnf [[neg x, c] | c <- cs ]
-    addCnf [x : [neg c | c <- cs]]
+    addClauses [ Or [neg x, c] | c <- cs ]
+    addClause $ Or $ x : [neg c | c <- cs]
     return x
 
 -- | Convert a disjunction of Lits to a single Lit.
-litOfOr :: [Lit (Var v)] -> Trans v (Lit (Var v))
+litOfOr :: Ord v => [Lit (Var v)] -> Trans v (Lit (Var v))
 litOfOr [l] = return l
 litOfOr ds = do
     x <- freshLit
     -- Define x <-> d1 ∨ ... ∨ dn
-    addCnf [ [x, neg d] | d <- ds]
-    addCnf [neg x : ds]
+    addClauses [ Or [x, neg d] | d <- ds]
+    addClause $ Or $ neg x : ds
     return x
 
 -- | Convert an exclusive or of two Lits to a single Lit.
-litOfXor :: Lit [Var v] -> Trans v (Lit (Var v))
+litOfXor :: Ord v => Lit [Var v] -> Trans v (Lit (Var v))
 litOfXor (Pos [l]) = return $ Pos l
 litOfXor (Neg [l]) = return $ Neg l
 litOfXor ds = do
     z <- freshLit
     -- Define z <-> x1 ⊕ ... ⊕ xn 
-    addXnf [neg $ ((extract z:) <$> ds)]
+    addClause $ XOr $ neg $ ((extract z:) <$> ds)
     return z
 
 
