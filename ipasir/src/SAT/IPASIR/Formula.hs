@@ -11,6 +11,7 @@ import Data.Maybe
 import Data.List
 import Data.String (IsString(..))
 import Data.Foldable
+import Data.Traversable
 import qualified Data.Map as Map
 
 import Control.Monad
@@ -36,13 +37,22 @@ instance (IsString v) => IsString (Formula v) where
     fromString = Var . fromString
 
 instance Foldable Formula where
-    foldMap g (Var v)   = f v
-    foldMap _ Yes       = mempty
-    foldMap _ No        = mempty
+    foldMap g (Var v)   = g v
     foldMap g (Not f)   = foldMap g f
-    foldMap g (All  fs) = foldMap g $ map (foldMap g) fs
-    foldMap g (Some fs) = foldMap g $ map (foldMap g) fs
-    foldMap g (Odd  fs) = foldMap g $ map (foldMap g) fs
+    foldMap g (All  fs) = fold $ map (foldMap g) fs
+    foldMap g (Some fs) = fold $ map (foldMap g) fs
+    foldMap g (Odd  fs) = fold $ map (foldMap g) fs
+    foldMap _ _         = mempty
+
+instance Traversable Formula where
+    traverse g (Var v)   = Var <$> g v
+    traverse _ Yes       = Yes
+    traverse _ No        = No
+    traverse g (Not f)   = Not  <$> traverse g f
+    traverse g (All  fs) = All  <$> sequenceA $ map (traverse g) fs
+    traverse g (Some fs) = Some <$> sequenceA $ map (traverse g) fs
+    traverse g (Odd  fs) = Odd  <$> sequenceA $ map (traverse g) fs
+
 
 getVars :: (Applicative f, Monoid (m v)) => Formula v -> f v
 getVars = foldMap pure 
