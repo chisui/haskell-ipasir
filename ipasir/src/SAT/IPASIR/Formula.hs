@@ -40,21 +40,23 @@ instance (IsString v) => IsString (Formula v) where
     fromString = Var . fromString
 
 instance Foldable Formula where
-    foldMap g (Var v)   = g v
-    foldMap g (Not f)   = foldMap g f
-    foldMap g (All  fs) = fold $ map (foldMap g) fs
-    foldMap g (Some fs) = fold $ map (foldMap g) fs
-    foldMap g (Odd  fs) = fold $ map (foldMap g) fs
+    foldMap g (Var  v)  = g v
+    foldMap g (Not  f)  = foldMap g f
+    foldMap g (All  fs) = deepFoldMap g fs
+    foldMap g (Some fs) = deepFoldMap g fs
+    foldMap g (Odd  fs) = deepFoldMap g fs
     foldMap _ _         = mempty
+deepFoldMap g = fold . map (foldMap g)
 
 instance Traversable Formula where
-    traverse g (Var v)   = Var <$> g v
-    traverse _ Yes       = Yes
-    traverse _ No        = No
-    traverse g (Not f)   = Not  <$> traverse g f
-    traverse g (All  fs) = All  <$> sequenceA $ map (traverse g) fs
-    traverse g (Some fs) = Some <$> sequenceA $ map (traverse g) fs
-    traverse g (Odd  fs) = Odd  <$> sequenceA $ map (traverse g) fs
+    traverse g (Var  v)  = Var  <$> g v
+    traverse g (Not  f)  = Not  <$> traverse g f
+    traverse g (All  fs) = All  <$> deepTraverse g fs
+    traverse g (Some fs) = Some <$> deepTraverse g fs
+    traverse g (Odd  fs) = Odd  <$> deepTraverse g fs
+    traverse _ Yes       = pure Yes
+    traverse _ No        = pure No
+deepTraverse g = traverse (traverse g)
 
 getVars :: (Applicative f, Monoid (f v)) => Formula v -> f v
 getVars = foldMap pure 
