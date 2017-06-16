@@ -7,7 +7,7 @@ import Data.Functor.Identity
 import Control.Monad
 
 main :: IO ()
-main = print $ cryptoMiniSat `solveAll` (Even [Var "a", Var "b", Var "c"])
+main = print $ cryptoMiniSat `solveAll` Odd [Var "a", Var "b", Var "c"]
     --solution <- runIdentity <$> mSolveAll
     --unless (isLeft solution) $ error "should be solvable"
     

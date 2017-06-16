@@ -11,6 +11,7 @@ module SAT.PseudoBoolean.C
 import Data.Maybe
 import Data.Word
 import Data.Int
+import Data.Bits
 
 import Foreign.Ptr
 import Foreign.ForeignPtr
@@ -21,6 +22,7 @@ import Foreign.Marshal.Array
 
 import GHC.Generics
 
+import SAT.IPASIR
 import SAT.PseudoBoolean.C.Types as Export
 import SAT.PseudoBoolean.C.Bindings
 import SAT.PseudoBoolean.Config
@@ -74,8 +76,10 @@ encodeNewGeq encoderPtr bound = withForeignPtr encoderPtr (`c_encodeNewGeq` coer
 encodeNewLeq :: ForeignPtr C_Encoder -> Word64 -> IO ()
 encodeNewLeq encoderPtr bound = withForeignPtr encoderPtr (`c_encodeNewLeq` coerceNum bound)
 
-getClauses :: ForeignPtr C_Encoder -> IO [[Int32]]
+getClauses :: ForeignPtr C_Encoder -> IO [[Lit Word]]
 getClauses encoder = do
     clausesPtr <- withForeignPtr encoder c_getClauses
     clauses <- peek clausesPtr
-    return $ map (map coerceNum . toList) $ toList clauses
+    return $ map (map readLit . toList) $ toList clauses
+
+readLit i = lit (i > 0) $ coerceEnum $ abs i - 1

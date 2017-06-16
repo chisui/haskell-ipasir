@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE InstanceSigs #-}
 module SAT.IPASIR.Cryptominisat
     ( CryptoMiniSat
     , cryptoMiniSat
@@ -23,19 +25,17 @@ cryptoMiniSat = undefined
 instance Ord v => Clauses (MIpasirSolver CryptoMiniSat) (Formula v) where
     addClauses f = do
         solvers <- get
-        newSolver <- lift $ mapM addClauses' solvers
+        newSolver <- lift $ mapM (addClauses' f) solvers
         put newSolver
         return ()
         where
-            (rawOrs, rawXors)  = formulaToNormalform f
-            addClauses' (MIpasirSolver cSolver litCache) = do
-                ipasirAddClauses    ors  cSolver
-                cryptoAddXorClauses xors cSolver
-                return (MIpasirSolver cSolver litCache'')
+            addClauses' :: Formula v -> MIpasirSolver CryptoMiniSat v -> IO (MIpasirSolver CryptoMiniSat v)
+            addClauses' f (MIpasirSolver cSolver vc) = do
+                ipasirAddClauses    intOrs  cSolver
+                cryptoAddXorClauses intXors cSolver
+                return (MIpasirSolver cSolver vc')
                 where
-                    (litCache',  ors)      = clausesToInt litCache  rawOrs
-                    (litCache'', xorsLits) = clausesToInt litCache' wrappedXors
-                    xors = zipWith clauseToEXOrClause rawXors xorsLits
-                    clauseToEXOrClause raw lits = raw $> map extract lits
-                    wrappedXors = map return . extract <$> rawXors
+                    (vc', (ors, xors)) = formulaToNormalform vc f
+                    intOrs  = clausesToInt vc' ors
+                    intXors = clausesToInt vc' xors
                     

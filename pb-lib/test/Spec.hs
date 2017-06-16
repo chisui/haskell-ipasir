@@ -8,7 +8,7 @@ import SAT.PseudoBoolean
 import Debug.Trace
 
 main :: IO ()
-main = runEncoder (defaultConfig :: Config PseudoBoolean) lits CBoth 5 100 4 $ do
+main = evalEncoder (defaultConfig :: Config PseudoBoolean) lits CBoth 5 100 4 $ do
     clauses0 <- getClauses
     clauses1 <- encodeNewGeq 10
     clauses2 <- encodeNewLeq 50

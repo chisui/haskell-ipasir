@@ -22,7 +22,7 @@ import Control.Comonad
 
 import SAT.IPASIR.Literals
 import SAT.IPASIR.Clauses
--- import SAT.IPASIR.Solver (HasVariables(..))
+import SAT.IPASIR.Solver (HasVariables(..))
 import SAT.IPASIR.VarCache
 
 
@@ -57,6 +57,11 @@ instance Traversable Formula where
     traverse _ Yes       = pure Yes
     traverse _ No        = pure No
 deepTraverse g = traverse (traverse g)
+
+instance Ord v => HasVariables (Formula v) where
+    type VariableType (Formula v) = v
+    getVars f _ = map Right $ foldMap pure f
+
 
 getVars :: (Applicative f, Monoid (f v)) => Formula v -> f v
 getVars = foldMap pure 

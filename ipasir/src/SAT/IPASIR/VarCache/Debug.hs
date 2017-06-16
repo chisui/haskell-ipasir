@@ -1,10 +1,14 @@
-module SAT.IPASIR.VarCache.Debug where
+module SAT.IPASIR.VarCache.Debug
+    ( showIntToVar
+    , showVarToInt
+    ) where
 
 
 import SAT.IPASIR.VarCache
+import Control.Monad
+import Control.Arrow
 
 import Data.List
-
 
 showIntToVar :: Show v => VarCache v -> String
 showIntToVar lcache = intercalate "\n" (seperator:lines) ++ '\n':seperator
@@ -34,6 +38,22 @@ showVarToInt lcache  = seperator ++ '\n' : text ++ '\n' : seperator
         lineLength   = length $ head lines
         seperator    = '+': replicate (lineLength-2) '-' ++ "+"
         text         = intercalate "\n" lines
+{-
+showTable :: [(String, String)] -> String
+showTable rows = unlines $ borderRow : ( map toLine rows >>= (\ l -> [l, borderRow]) )
+    where
+        toLine (l, r) = "| " ++ padLeft l width0 ++ " - " ++ padRight r width1 ++ " |"
+        borderRow = '+' : replicate (width0 + 2) '-' ++ "+"  ++ replicate (width1 + 2) '-' ++ "+"
+        (col0, col1) = unzip rows
+        width0 = width col0
+        width1 = width col1
+        width col = maximum (map length col) 0
+
+padLeft, padRight :: String -> Int -> String
+(padLeft, padRight) =  \ r w -> (r ++ padding r w, padding r w ++ r)
+    where
+        padding r w = replicate (w - length r) ' '
+-}
 
 sameSizer :: Show a => Bool -> [a] -> [String]
 sameSizer left elems

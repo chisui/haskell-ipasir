@@ -96,7 +96,7 @@ varToInt :: Ord v => VarCache v -> Var v -> Word
 varToInt vc = (v2i vc Map.!)
 
 -- | maps all variables in given clauses to integers using @varToInt@
-clausesToInt :: Ord v => VarCache v -> [[Lit (Var v)]] -> [[Lit Word]]
+clausesToInt :: (Functor f2, Functor f1, Functor f, Ord v) => VarCache v -> f (f1 (f2 (Var v))) -> f (f1 (f2 Word))
 clausesToInt vc = ((<$>).(<$>).(<$>)) (varToInt vc)
 
 -- | get the variable for given integer.
