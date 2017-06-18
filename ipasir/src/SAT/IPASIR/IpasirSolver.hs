@@ -82,7 +82,7 @@ instance Ipasir i => Solver (MIpasirSolver i) where
 
 instance Ord v => HasVariables [[Lit v]] where
     type VariableType [[Lit v]] = v
-    getAllVariables ls _ = map extract $ concat ls
+    getAllVariables ls _ = map (Right . extract) $ concat ls
     getAllHelpers _ _ = []
     getHelpers _ _ = Set.empty
 

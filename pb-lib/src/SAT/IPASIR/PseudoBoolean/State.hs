@@ -16,8 +16,10 @@ import Control.Monad.Trans.State.Lazy
 
 import Data.Word
 import Data.Int
-import Data.Monoid
+import Data.List
+import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.Vector as Vec
 
 import qualified SAT.IPASIR as I
 
@@ -29,56 +31,64 @@ import qualified SAT.PseudoBoolean.C as C
 type WeightedLits v = Map.Map (I.Var v) Integer
 
 data PBConstraint c v = PBConstraint
-    { pbConfig :: Config c
-    , vars   :: WeightedLits v
-    , comp   :: C.Comp
-    , lower  :: Word
-    , upper  :: Word
-    } deriving (Eq, Show)
+    { pbConfig  :: Config c
+    , wordToVar :: Word -> I.Var v
+    , vars      :: WeightedLits v
+    , comp      :: C.Comp
+    , lower     :: Word
+    , upper     :: Word
+    }
 
-type PBEncoder v r = StateT (I.VarCache v, Last (ForeignPtr C.C_Encoder)) IO r
+type Vars v = Vec.Vector (I.Var v)
+type Enc c v = (PBConstraint c v, Vars v, ForeignPtr C.C_Encoder)
+type PBEncoder c v r = StateT (Maybe (Enc c v)) IO r
 
 type Cls v = [[I.Lit (I.Var v)]]
 
-newPBEncoder :: forall c v. (C.CardinalityMethod c, Ord v) => PBConstraint c v -> PBEncoder v (Cls v)
+newPBEncoder :: forall c v. (C.CardinalityMethod c, Ord v) => PBConstraint c v -> PBEncoder c v (Cls v)
 newPBEncoder c = do
-    (vc, encoder) <- get
-    encoder' <- lift $ C.encoder (pbConfig c) (weightedLits vc) (comp c) (cn $ lower c) (cn $ upper c) (nVars vc)
-    rawClauses <- lift $ C.getClauses encoder'
-    let (clauses, vc') = runState (toClauses vc rawClauses) vc
-    put (vc', encoder <> return encoder')
+    encoder <- lift $ C.encoder (pbConfig c) (weightedLits c) (comp c) (cn $ lower c) (cn $ upper c) (nVars c)
+    rawClauses <- lift $ C.getClauses encoder
+    let (clauses, vs) = runState (toClauses (wordToVar c) rawClauses) initVars
+    put $ Just (c, vs, encoder)
     return clauses
     where
-        toClauses :: I.VarCache v -> [[I.Lit Word]] -> State (I.VarCache v) [[I.Lit (I.Var v)]] 
-        toClauses vc = mapM $ mapM $ resolveVar $ nVars vc
-        nVars vc = length $ weightedLits vc
-        weightedLits vc = asLit vc <$> Map.toList (vars c)
-        asLit vc (v, i) = I.varToInt vc v $-$ fromInteger i
+        initVars = Vec.fromList $ Set.toList $ Map.keysSet $ vars c
 
-resolveVar :: Ord v => Int -> I.Lit Word -> State (I.VarCache v) (I.Lit (I.Var v))
-resolveVar nVars i
-    | nVars < cn (extract i) = (<$ i) <$> state I.newHelper
-    | otherwise              = gets $ (<$> i) . I.intToVar
+pushLowerBound :: Ord v => Word -> PBEncoder c v (Cls v) 
+pushLowerBound = wrap C.encodeNewGeq
+pushUpperBound :: Ord v => Word -> PBEncoder c v (Cls v)
+pushUpperBound = wrap C.encodeNewLeq
 
-pushLowerBound, pushUpperBound :: Word -> PBEncoder v (Cls v)
-(pushLowerBound, pushUpperBound) = (wrap encodeNewGeq, wrap encodeNewLeq)
+wrap :: Ord v => (ForeignPtr C.C_Encoder -> Word64 -> IO ()) -> Word -> PBEncoder c v (Cls v)
+wrap pbf i = do
+    (c, vs, encoder) <- gets $ error "PBEncoder not initialized"
+    lift $ pbf encoder $ cn i
+    rawClauses <- lift $ C.getClauses encoder
+    let (clauses, vs') = runState (toClauses (wordToVar c) rawClauses) vs
+    put $ Just (c, vs', encoder)
+    return clauses
+
+resolveVar :: Ord v => (Word -> I.Var v) -> I.Lit Word -> State (Vars v) (I.Lit (I.Var v))
+resolveVar f lit = do
+    maybeV <- gets (Vec.!? i)
+    v <- case maybeV of
+        Just v  -> return v
+        Nothing -> do
+            let v' = f $ extract lit
+            modify ( `Vec.snoc` v')
+            return v'
+    return $ v <$ lit
     where
-        wrap pbf i = do
-            (vc, encoder) <- get
-            rawClauses <- lift $ mapM (pbf $ cn i) encoder
-            case getLast rawClauses of
-                Just rawClauses -> do
-                    let (clauses, vc') = runState (toClauses vc rawClauses) vc
-                    put (vc', encoder)
-                    return clauses
-                Nothing -> return []
-        toClauses :: I.VarCache v -> [[I.Lit Word]] -> State (I.VarCache v) [[I.Lit (I.Var v)]] 
-        toClauses vc = mapM $ mapM $ resolveVar $ nVars vc
-        nVars vc = length $ weightedLits vc
-                
+        i = cn $ extract lit
 
-
-
+toClauses :: Ord v => (Word -> I.Var v) -> [[I.Lit Word]] -> State (Vars v) [[I.Lit (I.Var v)]]
+toClauses f = mapM $ mapM $ resolveVar f
+nVars = length . Map.keys . vars
+weightedLits :: (C.CardinalityMethod c, Ord v) => PBConstraint c v -> [WeightedLit]
+weightedLits = map (\(v, i) -> v $-$ fromInteger i) . Map.toList . unwrappedVars
+unwrappedVars :: (C.CardinalityMethod c, Ord v) => PBConstraint c v -> Map.Map Word Integer
+unwrappedVars = Map.fromList . zipWith (\i (v, w) -> (i, w)) [0..] . sortOn fst . Map.toList . vars
 
 cn :: (Enum a, Enum b) => a -> b
 cn = toEnum . fromEnum

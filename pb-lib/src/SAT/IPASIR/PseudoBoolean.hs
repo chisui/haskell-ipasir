@@ -18,7 +18,7 @@ import SAT.IPASIR.PseudoBoolean.State as PB
 
 instance (C.CardinalityMethod c, Ord v) => HasVariables (PBConstraint c v) where
     type VariableType (PBConstraint c v) = v
-    getVars c _ = Map.keys $ PB.vars c
+    getAllVariables c _ = Map.keys $ PB.vars c
 
 instance (C.CardinalityMethod c, Ord v, Ipasir i) => Clauses (MIpasirSolver i) (PBConstraint c v) where
     addClauses c = do
