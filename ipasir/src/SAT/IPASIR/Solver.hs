@@ -40,15 +40,15 @@ type ESolution v = Either (Conflict v) (Solution v)
 class (Ord (VariableType c)) => HasVariables c where
     type VariableType c
     getAllVariables :: c -> VarCache (VariableType c) -> [Var (VariableType c)]
-    getAllLabeles :: c -> [VariableType c]
-    getAllLabeles c = rights $ getAllVariables c emptyCache
+    getAllLabels :: c -> [VariableType c]
+    getAllLabels c = rights $ getAllVariables c emptyCache
     getAllHelpers :: c -> VarCache (VariableType c) -> [Word]
     getAllHelpers c vc = lefts $ getAllVariables c vc
     
     getVariables :: c -> VarCache (VariableType c) -> Set.Set (Var (VariableType c))
     getVariables c vc = Set.fromList $ getAllVariables c vc
-    getLabeles :: c -> Set.Set (VariableType c)
-    getLabeles c = Set.fromList $ getAllLabeles c
+    getLabels :: c -> Set.Set (VariableType c)
+    getLabels c = Set.fromList $ getAllLabels c
     getHelpers :: c -> VarCache (VariableType c) -> Set.Set Word
     getHelpers c vc = Set.fromList $ getAllHelpers c vc
 

@@ -6,7 +6,7 @@ import Data.List
 import Data.Maybe
 import Data.Bits
 import Data.List.Split
-import Control.Arrow
+import Control.Comonad
 import qualified Data.List.Split as Split
 
 import Control.Monad.Trans.State
@@ -31,7 +31,7 @@ tester10 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All 
 tester11 = Some [Odd [Some [Var 3, Var 4], Var 2],  Var 1]
 tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Var 2]]
 
-data TransformationStep = TSNormal | TSReduced | TSDemorgen | TSHelperDefs | TSXCNF | TSCNF
+data TransformationStep = TSNormal | TSReduced | TSDemorgen | TSHelperDefs | TSHelperForm | TSXCNF | TSCNF
 
 class TraversableFormula (f :: * -> *) where
     isNegation  :: f v -> Bool
@@ -97,7 +97,6 @@ getVars = foldFormula f []
             | otherwise  = list
 
 tab = "    "
-
 {-
 showFormulaStatistics formula = "Incoming Formula:\n"                      ++ toText part1 ++ 
                                 "\nAfter Reduction:\n"                     ++ toText part2 ++ 
@@ -136,6 +135,51 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
                   ++ show hornCount ++ " of them Horn."
                 | n <- [0..maxLength (transformed++ors)], let (count, hornCount) = statsClauses (transformed++ors) n ]
 
+        reduced      = rFormula formula
+        demorgen     = demorgen reduced
+        (cache,xcnf) = formulaToNormalform emptyCache formula
+        cnf          = normalformToCNF xcnf
+                
+    -- Normal Formula 
+        varsNormalCount = length $ getAllVariables formula
+        inceNormalCount = Set.length $ getVariables formula
+        yesNoInce       = yesNoInce formula
+        
+    -- Reduced Formula 
+        varsReducedCount = length $ getAllVariables reduced
+        inceReducedCount = Set.length $ getVariables reduced
+        
+        
+        
+        
+        
+        
+        yesNoInce        = foldFormula yesNoCounter 0 formula
+            where
+                yesNoCounter n Yes = n+1
+                yesNoCounter n No  = n+1
+                yesNoCounter n form= n
+        
+        part3 = ["Number of Vars:                        " ++ show varsFinalCount ,
+                 "Number of new Vars:                    " ++ show (varsFinalCount - varsReducedCount)]
+        part4 = ["Number of or-clauses:                  " ++ show lors,
+                 "Number of horn-clauses                 " ++ show lhorn,
+                 "Number of xor-clauses:                 " ++ show lxors,
+                 "Incedence of Vars in or:               " ++ (show $ sum $ lengthClauses ors),
+                 "Incedence of Vars in xor:              " ++ (show $ sum $ lengthClauses xors) ]
+        part5 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses with " 
+                  ++ show hornCount ++ " of them Horn."
+                | n <- [0..maxLength ors], let (count, hornCount) = statsClauses ors n ]
+        part6 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses" | n <- [0..maxLength xors], let (count, _) = statsClauses xors n ]
+        part7 = ["Number of or-clauses:                  " ++ show (lors + ltrans),
+                 "Number of horn-clauses                 " ++ show (lhorn + ltransHorn),
+                 "Incedence of Vars:                     " ++ (show $ sum (lengthClauses transformed) + sum (lengthClauses ors) )]
+        part8 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses with " 
+                  ++ show hornCount ++ " of them Horn."
+                | n <- [0..maxLength (transformed++ors)], let (count, hornCount) = statsClauses (transformed++ors) n ]
+
+                
+
         lengthClauses c  = map length c
         isHornClauses c  = map isHorn c
         calcedClauses c  = zip (lengthClauses c) (isHornClauses c)
@@ -144,7 +188,7 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
             where relevant = filter ((==n).fst) $ calcedClauses c
         
         reduced    = rFormula formula
-        (ors,xors) = formulaToNormalform formula
+        (ors,xors) = formulaToNormalform emptyCache formula
         horn       = filter isHorn ors
         transformed= concat $ map oddToCNF xors
         transHorn  = filter isHorn ors
@@ -172,26 +216,65 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         varsFinalCount   = length $ nub $ concat $ ors++xors
 -}
 
+showFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> String
+showFormulaTransformation = showFormulaTransformation' (\i->"Helper"++show i)
+
 showFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> String
 showFormulaTransformation' showE TSNormal     formula = showFormula formula
 showFormulaTransformation' showE TSReduced    formula = showFormula $ rFormula formula
 showFormulaTransformation' showE TSDemorgen   formula = showFormula $ demorgen $ rFormula formula
 showFormulaTransformation' showE TSXCNF       formula = showFormulaEither showE $ normalformToFormula $ snd $ formulaToNormalform emptyCache formula
 showFormulaTransformation' showE TSCNF        formula = showFormulaEither showE $ normalformToFormula $ (snd $ formulaToCNF emptyCache formula,[])
-showFormulaTransformation' showE TSHelperDefs formula = mainCNFString ++ concat helperStrings
+showFormulaTransformation' showE TSHelperForm formula = printDefs' True  showE formula
+showFormulaTransformation' showE TSHelperDefs formula = printDefs' False showE formula
+
+printDefs' :: forall v. (Show v,Ord v) => Bool -> (Word -> String) -> Formula v -> String
+printDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
     where
         (main, newCache, cnfs, defs) = runTransComplete cache trans
+        def'          = reverse defs :: [(Var v, DFormula (Var v))]
         cache         = emptyCache
         trans         = transCnf $ demorgen $ rFormula formula
-        helperStrings = map (\(name,formula) -> (either showE undefined name) ++ "  :<=>  " ++ showFormulaEither showE formula ++ "\n") $ reverse defs
-        mainCNFString = printDef "YES" $ normalformToFormula $ partitionClauses True main
+        helperStrings :: [String]
+        helperStrings = zipWith (\(name,formula) str -> makeLine name formula str) def' helperFormulas
+            where
+                makeLine ::  Var v -> DFormula (Var v) -> String -> String
+                makeLine name formula string = firstPart ++ "\n" ++ secondPart
+                    where
+                        firstPart  = either showE undefined name ++ "  :<=>  " ++ showFormulaEither showE formula
+                        secondPart = if withFormula then indent tab "By:" string ++ "\n\n" else []
+                
+        mainCNFString = (showFormulaEither showE $ normalformToFormula $ partitionClauses True main) ++ "\n\n\n"
+        
+        helperFormulas= map (uncurry transHelperForm) def' :: [String]
         
         printDef name formula = name ++ "\n" ++ i (showFormulaEither showE formula) ++ "\n\n" 
             where
                 i = indent (tab++tab) (take (length (tab++tab)) $ " :<=>"++repeat ' ')
-        indent s sFirst string = intercalate "\n" $ (sFirst ++ head lines) : (map (s++) $ tail lines)
+        indent s sFirst string = intercalate "\n" $ (sFirst' ++ head lines) : (map (s++) $ tail lines)
             where
-                lines = splitOn "\n" string
+                lines   = splitOn "\n" string
+                sFirst' = take (length s) $ sFirst ++ repeat ' '
+                
+        transHelperForm :: Var v -> DFormula (Var v) -> String
+        transHelperForm helper formula = showFormulaEither showE $ normalformToFormula (or',xor')
+            where
+                replacer :: Var v -> Var v -> Var v -> Var v
+                replacer a b c      = if a == c then b else c
+                or'                 = replacer hName' helper 💩 or  :: [[Lit (Var v)]]
+                xor'                = replacer hName' helper 💩 xor :: [Lit [ Var v ]]
+                (or,xor)            = partitionClauses True xcnf :: ([[Lit (Var v)]],[Lit [Var v]])
+                (hName,(_,xcnf,_))  = runState (innerForm formula) (newCache,[],[])
+                hName'              = extract hName
+                unpacked            = map (\(DVar v) -> v) $ getInnerFormulas formula
+                innerForm :: (Show v, Eq v) => DFormula (Var v) -> Trans v (Lit (Var v))
+                innerForm (DAll l)  = litOfAnd unpacked
+                innerForm (DSome l) = litOfOr  unpacked
+                innerForm (DOdd l)  = litOfXor $ map extract unpacked <$ head unpacked
+                (💩) :: (Functor f1, Functor f2, Functor f3) => (a -> b) -> f1 (f2 (f3 a)) -> f1 (f2 (f3 b))
+                (💩)                 = (<$>).(<$>).(<$>)
+                
+
 
 showFormula :: (TraversableFormula f, Show v) => f v -> String
 showFormula = showFormula' tab showElem

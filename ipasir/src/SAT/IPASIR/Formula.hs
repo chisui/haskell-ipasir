@@ -10,6 +10,7 @@ import Prelude hiding (all)
 import Data.Bits
 import Data.Maybe
 import Data.List
+import Data.Either
 import Data.String (IsString(..))
 import Data.Foldable
 import Data.Bifunctor
@@ -63,9 +64,12 @@ instance Ord v => HasVariables (Formula v) where
     type VariableType (Formula v) = v
     getAllVariables f vc = map extract $ concat $ snd $ formulaToCNF vc f
 
-    getVariables c vc = ???
-    getLabeles = Set.fromList . toList
-    getHelpers c vc = ???
+    getVariables c vc = Set.map Left (getHelpers c vc) `Set.union` Set.map Right (getLabels c)
+    getLabels         = Set.fromList . toList
+    getHelpers c vc   = Set.fromList helper
+        where
+            (_,_,_,defs) = runTransComplete emptyCache $ transCnf $ demorgen $ rFormula c
+            helper = map id $ lefts $ map fst defs
 
 notB (Not x) = x
 notB f       = Not f
@@ -189,7 +193,7 @@ runTransComplete cache trans = (mainCNF, newCache, cnfs, defs)
 formulaToNormalform :: Ord v => VarCache v -> Formula v -> (VarCache v, NormalForm (Var v))
 formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgen $ rFormula form
     where
-        cache' = snd $ newVars cache $ getRawVars form
+        cache' = snd $ newVars cache $ Set.toList $ getLabels form
 
 normalformToCNF :: Eq v => NormalForm (Var v) -> CNF (Var v)
 normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)
