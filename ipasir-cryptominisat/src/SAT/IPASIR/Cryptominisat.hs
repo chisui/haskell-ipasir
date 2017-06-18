@@ -9,6 +9,7 @@ module SAT.IPASIR.Cryptominisat
     , cryptoMiniSat
     ) where
 
+import Data.Proxy
 import Data.Functor
 
 import Control.Comonad
@@ -19,21 +20,21 @@ import SAT.IPASIR
 import SAT.IPASIR.Cryptominisat.C
 
 
-cryptoMiniSat :: IpasirSolver CryptoMiniSat
-cryptoMiniSat = undefined
+cryptoMiniSat :: Proxy (IpasirSolver CryptoMiniSat s)
+cryptoMiniSat = Proxy
 
-instance Ord v => Clauses (MIpasirSolver CryptoMiniSat) (Formula v) where
+instance Ord v => Clauses (IpasirSolver CryptoMiniSat) (Formula v) where
     addClauses f = do
         solvers <- get
         newSolver <- lift $ mapM (addClauses' f) solvers
         put newSolver
         return ()
         where
-            addClauses' :: Formula v -> MIpasirSolver CryptoMiniSat v -> IO (MIpasirSolver CryptoMiniSat v)
-            addClauses' f (MIpasirSolver cSolver vc) = do
+            addClauses' :: Formula v -> IpasirSolver CryptoMiniSat v -> IO (IpasirSolver CryptoMiniSat v)
+            addClauses' f (IpasirSolver cSolver vc) = do
                 ipasirAddClauses    intOrs  cSolver
                 cryptoAddXorClauses intXors cSolver
-                return (MIpasirSolver cSolver vc')
+                return (IpasirSolver cSolver vc')
                 where
                     (vc', (ors, xors)) = formulaToNormalform vc f
                     intOrs  = clausesToInt vc' ors

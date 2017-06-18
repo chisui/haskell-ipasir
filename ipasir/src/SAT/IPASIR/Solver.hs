@@ -25,6 +25,7 @@ import Data.Kind
 
 import Data.Either
 import Data.Maybe
+import Data.Proxy
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -56,28 +57,25 @@ class (HasVariables c) => Clauses s c where
     addClauses :: (MSolver s, Traversable m, Clauses s c) => c -> StateT (m (s (VariableType c))) IO ()
 
 class MSolver (s :: * -> *) where
-
-    type family Marker s = marker | marker -> s
-
-    newMSolver :: (Ord v, Applicative m, Monoid (m (s v))) => Marker s -> StateT (m (s v)) IO ()
+    newMSolver :: (Ord v, Applicative m, Monoid (m (s v))) => Proxy (s v) -> StateT (m (s v)) IO ()
     mSolve :: (Ord v, Traversable m) => StateT (m (s v)) IO (m (ESolution v))
     mSolveAllForVars :: (Ord v, Traversable m) => [Var v] -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
 
 class (MSolver s) => Solver s where
     
-    solve :: (Clauses s c, v ~ VariableType c, Ord v) => Marker s -> c -> ESolution v
+    solve :: (Clauses s c, v ~ VariableType c, Ord v) => Proxy (s v) -> c -> ESolution v
     solve m c = runIdentity $ unsafePerformIO $ runSolver m $ do
         addClauses c
         mSolve
 
-    solveAllForVars' :: (Ord v, Clauses s c, VariableType c ~ v) => Marker s -> c -> [Var v] -> (Conflict v, [Solution v])
+    solveAllForVars' :: (Ord v, Clauses s c, VariableType c ~ v) => Proxy (s v) -> c -> [Var v] -> (Conflict v, [Solution v])
     solveAllForVars' m c ls = runIdentity $ unsafePerformIO $ runSolver m $ do
         addClauses c
         mSolveAllForVars ls
 
-    solveAllForVars :: (Clauses s c, VariableType c ~ v) => Marker s -> c -> [Var v] -> [Solution v]
+    solveAllForVars :: (Clauses s c, VariableType c ~ v) => Proxy (s v) -> c -> [Var v] -> [Solution v]
     solveAllForVars m c ls = snd $ solveAllForVars' m c ls
-    solveAll :: (Clauses s c, VariableType c ~ v) => Marker s -> c -> [Solution v]
+    solveAll :: (Clauses s c, VariableType c ~ v) => Proxy (s v) -> c -> [Solution v]
     solveAll m c = solveAllForVars m c $ Set.toList $ getVariables c emptyCache
 
 {-# SPECIALIZE expandSolution :: Solution v -> [Map.Map (Var v) Bool] #-}
@@ -87,7 +85,7 @@ expandSolution = traverse $ maybe (pure True <> pure False) pure
 runSolver' :: (Monoid a, Monad m) => StateT a m b -> m b
 runSolver' s = evalStateT s mempty
 
-runSolver :: (MSolver s, Ord v) => Marker s -> StateT (Identity (s v)) IO a -> IO a
+runSolver :: (MSolver s, Ord v) => Proxy (s v) -> StateT (Identity (s v)) IO a -> IO a
 runSolver m s = do
     (Just solver) <- getLast <$> execStateT (newMSolver m) mempty
     evalStateT s (Identity solver)
