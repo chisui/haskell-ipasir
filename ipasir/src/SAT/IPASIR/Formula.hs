@@ -14,6 +14,7 @@ import Data.String (IsString(..))
 import Data.Foldable
 import Data.Bifunctor
 import Data.Traversable
+import qualified Data.Set as Set
 import qualified Data.Map as Map
 
 import Control.Monad
@@ -60,11 +61,11 @@ deepTraverse g = traverse (traverse g)
 
 instance Ord v => HasVariables (Formula v) where
     type VariableType (Formula v) = v
-    getVars f _ = map Right $ getRawVars f
+    getAllVariables f vc = map extract $ concat $ snd $ formulaToCNF vc f
 
-
-getRawVars :: (Applicative f, Monoid (f v)) => Formula v -> f v
-getRawVars = foldMap pure 
+    getVariables c vc = ???
+    getLabeles = Set.fromList . toList
+    getHelpers c vc = ???
 
 notB (Not x) = x
 notB f       = Not f

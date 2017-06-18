@@ -26,6 +26,7 @@ import Data.Kind
 import Data.Either
 import Data.Maybe
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import SAT.IPASIR.Api
 import SAT.IPASIR.Literals
@@ -38,7 +39,18 @@ type ESolution v = Either (Conflict v) (Solution v)
 
 class (Ord (VariableType c)) => HasVariables c where
     type VariableType c
-    getVars :: c -> VarCache (VariableType c) -> [Var (VariableType c)]
+    getAllVariables :: c -> VarCache (VariableType c) -> [Var (VariableType c)]
+    getAllLabeles :: c -> [VariableType c]
+    getAllLabeles c = rights $ getAllVariables c emptyCache
+    getAllHelpers :: c -> VarCache (VariableType c) -> [Word]
+    getAllHelpers c vc = lefts $ getAllVariables c vc
+    
+    getVariables :: c -> VarCache (VariableType c) -> Set.Set (Var (VariableType c))
+    getVariables c vc = Set.fromList $ getAllVariables c vc
+    getLabeles :: c -> Set.Set (VariableType c)
+    getLabeles c = Set.fromList $ getAllLabeles c
+    getHelpers :: c -> VarCache (VariableType c) -> Set.Set Word
+    getHelpers c vc = Set.fromList $ getAllHelpers c vc
 
 class (HasVariables c) => Clauses s c where
     addClauses :: (MSolver s, Traversable m, Clauses s c) => c -> StateT (m (s (VariableType c))) IO ()

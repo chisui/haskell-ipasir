@@ -19,6 +19,7 @@ import qualified Data.Map    as Map
 import qualified Data.Vector as Vec
 import Data.List hiding (insert)
 import Data.List.Split
+import Data.Maybe
 import Data.Bifunctor
 import Control.Lens
 
@@ -100,7 +101,7 @@ vars = Vec.toList . i2v
 -- | get the integer value for given variable.
 -- This will cause an error if the variable is not in the cache.
 varToInt :: Ord v => VarCache v -> Var v -> Word
-varToInt vc = (v2i vc Map.!)
+varToInt vc v = fromMaybe (error "variable not in VarCache") $ Map.lookup v $ v2i vc
 
 -- | maps all variables in given clauses to integers using @varToInt@
 clausesToInt :: (Functor f2, Functor f1, Functor f, Ord v) => VarCache v -> f (f1 (f2 (Var v))) -> f (f1 (f2 Word))
@@ -109,7 +110,7 @@ clausesToInt vc = ((<$>).(<$>).(<$>)) (varToInt vc)
 -- | get the variable for given integer.
 -- This will cause an error if the given integer is not associated with a variable.
 intToVar :: VarCache v -> Word -> Var v
-intToVar vc = (i2v vc Vec.!) . fromEnum
+intToVar vc w = fromMaybe (error $ "VarCache has no variable for " ++ show w) $i2v vc Vec.!? fromEnum w
 
 
 insert :: Ord v => VarCache v -> Var v -> (Var v, VarCache v)
