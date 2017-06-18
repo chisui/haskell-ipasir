@@ -60,11 +60,11 @@ deepTraverse g = traverse (traverse g)
 
 instance Ord v => HasVariables (Formula v) where
     type VariableType (Formula v) = v
-    getVars f _ = map Right $ foldMap pure f
+    getVars f _ = map Right $ getRawVars f
 
 
-getVars :: (Applicative f, Monoid (f v)) => Formula v -> f v
-getVars = foldMap pure 
+getRawVars :: (Applicative f, Monoid (f v)) => Formula v -> f v
+getRawVars = foldMap pure 
 
 notB (Not x) = x
 notB f       = Not f
@@ -188,7 +188,7 @@ runTransComplete cache trans = (mainCNF, newCache, cnfs, defs)
 formulaToNormalform :: Ord v => VarCache v -> Formula v -> (VarCache v, NormalForm (Var v))
 formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgen $ rFormula form
     where
-        cache' = snd $ newVars cache $ getVars form
+        cache' = snd $ newVars cache $ getRawVars form
 
 normalformToCNF :: Eq v => NormalForm (Var v) -> CNF (Var v)
 normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)

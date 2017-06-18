@@ -22,7 +22,6 @@ library
                      , SAT.IPASIR.Literals
                      , SAT.IPASIR.Formula
                      , SAT.IPASIR.VarCache
-                     , SAT.IPASIR.VarCache.Debug
                      , SAT.IPASIR.LiteralCache
                      , SAT.IPASIR.HelperVarCache
                      , SAT.IPASIR.ManagedLitCache

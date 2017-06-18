@@ -7,6 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE TypeInType #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module SAT.IPASIR.Solver where
@@ -67,6 +68,9 @@ class (MSolver s) => Solver s where
     solveAll :: (Clauses s c, VariableType c ~ v) => Marker s -> c -> [Solution v]
     solveAll m c = solveAllForVars m c $ getVars c emptyCache
 
+{-# SPECIALIZE expandSolution :: Solution v -> [Map.Map (Var v) Bool] #-}
+expandSolution :: (Traversable t, Applicative f, Monoid (f Bool), Monoid (f (Maybe Bool))) => t (Maybe Bool) -> f (t Bool)
+expandSolution = traverse $ maybe (pure True <> pure False) pure
 
 runSolver' :: (Monoid a, Monad m) => StateT a m b -> m b
 runSolver' s = evalStateT s mempty
