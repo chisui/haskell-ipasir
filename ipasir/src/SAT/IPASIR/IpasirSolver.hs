@@ -21,6 +21,7 @@ import Data.List (nub)
 import Data.Monoid
 import Data.Maybe
 import Data.Bifunctor
+import qualified Data.Set as Set
 import qualified Data.Map as Map
 
 import SAT.IPASIR.Api
@@ -81,7 +82,9 @@ instance Ipasir i => Solver (MIpasirSolver i) where
 
 instance Ord v => HasVariables [[Lit v]] where
     type VariableType [[Lit v]] = v
-    getVars vc = undefined -- map extract . nub . concat
+    getAllVariables ls _ = map extract $ concat ls
+    getAllHelpers _ _ = []
+    getHelpers _ _ = Set.empty
 
 instance (Ord v, Ipasir i) => Clauses (MIpasirSolver i) [[Lit v]] where
     addClauses rawClauses = do

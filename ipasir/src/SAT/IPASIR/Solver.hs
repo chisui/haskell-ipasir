@@ -78,7 +78,7 @@ class (MSolver s) => Solver s where
     solveAllForVars :: (Clauses s c, VariableType c ~ v) => Marker s -> c -> [Var v] -> [Solution v]
     solveAllForVars m c ls = snd $ solveAllForVars' m c ls
     solveAll :: (Clauses s c, VariableType c ~ v) => Marker s -> c -> [Solution v]
-    solveAll m c = solveAllForVars m c $ getVars c emptyCache
+    solveAll m c = solveAllForVars m c $ Set.toList $ getVariables c emptyCache
 
 {-# SPECIALIZE expandSolution :: Solution v -> [Map.Map (Var v) Bool] #-}
 expandSolution :: (Traversable t, Applicative f, Monoid (f Bool), Monoid (f (Maybe Bool))) => t (Maybe Bool) -> f (t Bool)
