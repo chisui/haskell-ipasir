@@ -8,6 +8,7 @@ import Data.Bits
 import Data.List.Split
 import Control.Comonad
 import qualified Data.List.Split as Split
+import qualified Data.Set as Set
 
 import Control.Monad.Trans.State
 
@@ -48,6 +49,11 @@ class TraversableFormula (f :: * -> *) where
     foldFormula f starter form = foldl (foldFormula f) next $ getInnerFormulas form
         where
             next = f starter form
+    toList :: f v -> [v]
+    toList formula
+        |  = catMaybes $ unpackVar formula : concat (map toList (getInnerFormulas formula))
+        where
+            var = unpackVar formula
 
 instance TraversableFormula Formula where
     isNegation (Not _) = True
@@ -97,22 +103,22 @@ getVars = foldFormula f []
             | otherwise  = list
 
 tab = "    "
-{-
+
 showFormulaStatistics formula = "Incoming Formula:\n"                      ++ toText part1 ++ 
                                 "\nAfter Reduction:\n"                     ++ toText part2 ++ 
                                 "\nFinal Form general information:\n"      ++ toText part3 ++
                                 "\nIn Final Form (or and xor seperated):\n"++ toText part4 ++
-                                "or-clauses:\n"                            ++ toText part5 ++
-                                "xor-clauses:\n"                           ++ toText part6 ++
-                                "\nIn Final Form (xors transformed):\n"    ++ toText part7 ++ 
-                                "clauses:\n"                               ++ toText part8
+              --                  "or-clauses:\n"                            ++ toText part5 ++
+              --                  "xor-clauses:\n"                           ++ toText part6 ++
+                                "\nIn Final Form (xors transformed):\n"    ++ toText part7 
+              --                  "clauses:\n"                               ++ toText part8
     where
         toText :: [String] -> String
         toText l = tab ++ intercalate ('\n':tab) l ++ "\n"
         
         part1 = ["Number of different Vars:              " ++ show varsNormalCount, 
                  "Incedence of Vars:                     " ++ show inceNormalCount,
-                 "Incedence of Yes/No:                   " ++ show yesNoInce ]
+                 "Incedence of Yes/No:                   " ++ show yesNoInceCount ]
         part2 = ["Number of different Vars:              " ++ show varsReducedCount,
                  "Incedence of Vars:                     " ++ show inceReducedCount,
                  "Number of removed Vars:                " ++ show (varsNormalCount-varsReducedCount),
@@ -120,17 +126,17 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         part3 = ["Number of Vars:                        " ++ show varsFinalCount ,
                  "Number of new Vars:                    " ++ show (varsFinalCount - varsReducedCount)]
         part4 = ["Number of or-clauses:                  " ++ show lors,
-                 "Number of horn-clauses                 " ++ show lhorn,
+                 "or-clauses, which are in horn form:    " ++ show lhornX,
                  "Number of xor-clauses:                 " ++ show lxors,
-                 "Incedence of Vars in or:               " ++ (show $ sum $ lengthClauses ors),
-                 "Incedence of Vars in xor:              " ++ (show $ sum $ lengthClauses xors) ]
+                 "Incedence of Vars in or:               " ++ show inceVarsOrs,
+                 "Incedence of Vars in xor:              " ++ show inceVarsXOrs ]
         part5 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses with " 
                   ++ show hornCount ++ " of them Horn."
                 | n <- [0..maxLength ors], let (count, hornCount) = statsClauses ors n ]
         part6 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses" | n <- [0..maxLength xors], let (count, _) = statsClauses xors n ]
-        part7 = ["Number of or-clauses:                  " ++ show (lors + ltrans),
-                 "Number of horn-clauses                 " ++ show (lhorn + ltransHorn),
-                 "Incedence of Vars:                     " ++ (show $ sum (lengthClauses transformed) + sum (lengthClauses ors) )]
+        part7 = ["Number or:                             " ++ show lcnf,
+                 "Clauses, which are in horn form:       " ++ show lhorn,
+                 "Incedence of Vars:                     " ++ show inceVarsCnf]
         part8 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses with " 
                   ++ show hornCount ++ " of them Horn."
                 | n <- [0..maxLength (transformed++ors)], let (count, hornCount) = statsClauses (transformed++ors) n ]
@@ -139,19 +145,33 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         demorgen     = demorgen reduced
         (cache,xcnf) = formulaToNormalform emptyCache formula
         cnf          = normalformToCNF xcnf
-                
+
     -- Normal Formula 
-        varsNormalCount = length $ getAllVariables formula
-        inceNormalCount = Set.length $ getVariables formula
-        yesNoInce       = yesNoInce formula
+        varsNormalCount = length $ nub $ toList formula
+        inceNormalCount = length $ toList formula
+        yesNoInceCount  = yesNoInce formula
         
     -- Reduced Formula 
-        varsReducedCount = length $ getAllVariables reduced
-        inceReducedCount = Set.length $ getVariables reduced
+        varsReducedCount = length $ nub $ toList reduced
+        inceReducedCount = length $ toList reduced
         
+    -- Final Form general information
+        varsFinalCount   = Set.size $ getVariables formula
         
+    --XCNF
+        (ors,xors) = partitionClause True xcnf
+        hornX  = filter isHorn ors
+        lors   = length ors
+        lhornX = length hornX
+        lxors  = length xors
+        inceVarsOr  = sum $ map length ors
+        inceVarsXOr = sum $ map length xors
         
-        
+    -- CNF
+        horn         = filter isHorn cnf
+        lcnf         = length cnf
+        lhorn        = length horn
+        inceVarsCnf  = sum $ map length cnf
         
         
         yesNoInce        = foldFormula yesNoCounter 0 formula
@@ -159,27 +179,13 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
                 yesNoCounter n Yes = n+1
                 yesNoCounter n No  = n+1
                 yesNoCounter n form= n
-        
-        part3 = ["Number of Vars:                        " ++ show varsFinalCount ,
-                 "Number of new Vars:                    " ++ show (varsFinalCount - varsReducedCount)]
-        part4 = ["Number of or-clauses:                  " ++ show lors,
-                 "Number of horn-clauses                 " ++ show lhorn,
-                 "Number of xor-clauses:                 " ++ show lxors,
-                 "Incedence of Vars in or:               " ++ (show $ sum $ lengthClauses ors),
-                 "Incedence of Vars in xor:              " ++ (show $ sum $ lengthClauses xors) ]
-        part5 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses with " 
-                  ++ show hornCount ++ " of them Horn."
-                | n <- [0..maxLength ors], let (count, hornCount) = statsClauses ors n ]
-        part6 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses" | n <- [0..maxLength xors], let (count, _) = statsClauses xors n ]
-        part7 = ["Number of or-clauses:                  " ++ show (lors + ltrans),
-                 "Number of horn-clauses                 " ++ show (lhorn + ltransHorn),
-                 "Incedence of Vars:                     " ++ (show $ sum (lengthClauses transformed) + sum (lengthClauses ors) )]
-        part8 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses with " 
-                  ++ show hornCount ++ " of them Horn."
-                | n <- [0..maxLength (transformed++ors)], let (count, hornCount) = statsClauses (transformed++ors) n ]
-
                 
-
+        isHorn :: [Lit v] -> Bool
+        isHorn = (<=1) . length . filter sign
+        
+        maxLength        = foldl max 0 . lengthClauses
+                
+{-
         lengthClauses c  = map length c
         isHornClauses c  = map isHorn c
         calcedClauses c  = zip (lengthClauses c) (isHornClauses c)
