@@ -29,22 +29,22 @@ import SAT.PseudoBoolean.Config
 import qualified SAT.PseudoBoolean.C as C
 
 
-type WeightedLits v = Map.Map (I.Var v) Integer
+type WeightedLits v = Map.Map v Integer
 
 data PBConstraint c v = PBConstraint
     { pbConfig  :: Config c
-    , wordToVar :: Word -> I.Var v
+    , wordToVar :: Word -> v
     , vars      :: WeightedLits v
     , comp      :: C.Comp
     , lower     :: Word
     , upper     :: Word
     }
 
-type Vars v = Vec.Vector (I.Var v)
+type Vars v = Vec.Vector v
 type Enc c v = (PBConstraint c v, Vars v, ForeignPtr C.C_Encoder)
 type PBEncoder c v r = StateT (Maybe (Enc c v)) IO r
 
-type Cls v = [[I.Lit (I.Var v)]]
+type Cls v = [[I.Lit v]]
 
 newPBEncoder :: forall c v. (C.CardinalityMethod c, Ord v) => PBConstraint c v -> PBEncoder c v (Cls v)
 newPBEncoder c = do
@@ -70,7 +70,7 @@ wrap pbf i = do
     put $ Just (c, vs', encoder)
     return clauses
 
-resolveVar :: Ord v => (Word -> I.Var v) -> I.Lit Word -> State (Vars v) (I.Lit (I.Var v))
+resolveVar :: Ord v => (Word -> v) -> I.Lit Word -> State (Vars v) (I.Lit v)
 resolveVar f lit = do
     maybeV <- gets (Vec.!? i)
     v <- case maybeV of
@@ -83,7 +83,7 @@ resolveVar f lit = do
     where
         i = cn $ extract lit
 
-toClauses :: Ord v => (Word -> I.Var v) -> [[I.Lit Word]] -> State (Vars v) [[I.Lit (I.Var v)]]
+toClauses :: Ord v => (Word -> v) -> [[I.Lit Word]] -> State (Vars v) [[I.Lit v]]
 toClauses f = mapM $ mapM $ resolveVar f
 nVars = length . Map.keys . vars
 weightedLits :: (C.CardinalityMethod c, Ord v) => PBConstraint c v -> [WeightedLit]

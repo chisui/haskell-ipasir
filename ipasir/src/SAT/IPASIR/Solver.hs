@@ -64,33 +64,35 @@ class (Ord (VariableType c)) => HasVariables c where
     -- | Defines what type variables of @c@ have
     type VariableType c
 
-    -- | extracts all variables (helper or not) from @c@.
+    -- | Extracts all variables (helper or not) from @c@.
     -- new helpers may be constructed using the @VarCache@.
     -- if @c@ has multiple occurances of a variable it has to be included multiple times in the result.
     getAllVariables :: c -> VarCache (VariableType c) -> [Var (VariableType c)]
-    -- | extract all labels (variables that aren't helpers) from @c@
+    -- | Extract all labels (variables that aren't helpers) from @c@
     -- if @c@ has multiple occurances of a variable it has to be included multiple times in the result.
     getAllLabels :: c -> [VariableType c]
     getAllLabels c = rights $ getAllVariables c emptyCache
-    -- | extract all helpers from @c@.
+    -- | Extract all helpers from @c@.
     -- new helpers have to be created using the @VarCache@
     -- if @c@ has multiple occurances of a variable it has to be included multiple times in the result.
     getAllHelpers :: c -> VarCache (VariableType c) -> [Word]
     getAllHelpers c vc = lefts $ getAllVariables c vc
     
-    -- | extracts all variables (helper or not) from @c@.
+    -- | Extracts all variables (helper or not) from @c@.
     -- new helpers may be constructed using the @VarCache@.
     getVariables :: c -> VarCache (VariableType c) -> Set.Set (Var (VariableType c))
     getVariables c vc = Set.fromList $ getAllVariables c vc
-    -- | extract all labels (variables that aren't helpers) from @c@
+    -- | Extract all labels (variables that aren't helpers) from @c@
     getLabels :: c -> Set.Set (VariableType c)
     getLabels c = Set.fromList $ getAllLabels c
-    -- | extract all helpers from @c@.
+    -- | Extract all helpers from @c@.
     -- new helpers have to be created using the @VarCache@
     getHelpers :: c -> VarCache (VariableType c) -> Set.Set Word
     getHelpers c vc = Set.fromList $ getAllHelpers c vc
 
+-- | 
 data Clausable s = forall c. Clauses s c => Clausable { toClauses :: c }
+
 -- | Everything that can be added into a solver @s@ has to implement @Clauses@
 class (MSolver s, HasVariables c) => Clauses s c where
     addClauses :: Traversable m => c -> StateT (m (s (VariableType c))) IO ()
@@ -117,10 +119,10 @@ class (MSolver s) => Solver s where
     solveAll :: (Clauses s c, VariableType c ~ v) => Proxy (s v) -> c -> [Solution v]
     solveAll m c = solveAllForVars m c $ Set.toList $ getVariables c emptyCache
 
+expandSolution :: (Traversable t, Applicative f, Monoid (f Bool), Monoid (f (Maybe Bool))) => t (Maybe Bool) -> f (t Bool)
 {-# SPECIALIZE expandSolution :: Solution v -> [Map.Map (Var v) Bool] #-}
 {-# SPECIALIZE expandSolution :: Solution v -> First (Map.Map (Var v) Bool) #-}
 {-# SPECIALIZE expandSolution :: Solution v -> Last (Map.Map (Var v) Bool) #-}
-expandSolution :: (Traversable t, Applicative f, Monoid (f Bool), Monoid (f (Maybe Bool))) => t (Maybe Bool) -> f (t Bool)
 expandSolution = traverse $ maybe (pure True <> pure False) pure
 
 withoutHelpers :: Ord v => Map.Map (Var v) r -> Map.Map v r
