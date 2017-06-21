@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module SAT.IPASIR.PseudoBoolean.State
     ( WeightedLits
+    , Enc
     , PBConstraint(..)
     , PBEncoder
     , newPBEncoder
