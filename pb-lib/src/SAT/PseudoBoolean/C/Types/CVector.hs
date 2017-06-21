@@ -6,6 +6,8 @@ import Foreign.Marshal.Array
 import Foreign.C.Types
 
 newtype CVector a = CVector { toList :: [a] }
+instance Show a => Show (CVector a) where
+    show (CVector l) = show l
 
 instance Storable a => Storable (CVector a) where
     sizeOf _ = sizeOf (undefined :: Ptr a) + sizeOf (undefined :: CSize)

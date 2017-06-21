@@ -5,6 +5,9 @@ import Control.Monad
 
 import SAT.IPASIR.Literals
 
+import Debug.Trace
+
+
 class Ipasir a where
     ipasirSignature :: a -> IO String
     ipasirInit   :: IO a
@@ -15,8 +18,11 @@ class Ipasir a where
     ipasirFailed :: Word -> a -> IO Bool
     
     ipasirAddClause :: [Lit Word] -> a -> IO ()
-    ipasirAddClause [] s = ipasirAdd Nothing s
+    ipasirAddClause [] s = do
+        traceM " 0"
+        ipasirAdd Nothing s
     ipasirAddClause (l:ls) s = do
+        traceM (show l)
         ipasirAdd (Just l) s
         ipasirAddClause ls s
     

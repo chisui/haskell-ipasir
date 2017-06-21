@@ -10,6 +10,8 @@ module SAT.IPASIR.PseudoBoolean.State
     ) where
 
 import Foreign.ForeignPtr
+import Foreign.ForeignPtr.Unsafe
+import Foreign.Ptr
 
 import Control.Comonad
 import Control.Monad.Trans.Class
@@ -18,6 +20,7 @@ import Control.Monad.Trans.State.Lazy
 import Data.Word
 import Data.Int
 import Data.List
+import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.Vector as Vec
@@ -28,6 +31,8 @@ import SAT.PseudoBoolean
 import SAT.PseudoBoolean.Config 
 import qualified SAT.PseudoBoolean.C as C
 
+import Debug.Trace
+
 
 type WeightedLits v = Map.Map v Integer
 
@@ -36,8 +41,8 @@ data PBConstraint c v = PBConstraint
     , wordToVar :: Word -> v
     , vars      :: WeightedLits v
     , comp      :: C.Comp
-    , lower     :: Word
-    , upper     :: Word
+    , lower     :: Int
+    , upper     :: Int
     }
 
 type Vars v = Vec.Vector v
@@ -56,14 +61,14 @@ newPBEncoder c = do
     where
         initVars = Vec.fromList $ Set.toList $ Map.keysSet $ vars c
 
-pushLowerBound :: Ord v => Word -> PBEncoder c v (Cls v) 
+pushLowerBound :: Ord v => Int -> PBEncoder c v (Cls v) 
 pushLowerBound = wrap C.encodeNewGeq
-pushUpperBound :: Ord v => Word -> PBEncoder c v (Cls v)
+pushUpperBound :: Ord v => Int -> PBEncoder c v (Cls v)
 pushUpperBound = wrap C.encodeNewLeq
 
-wrap :: Ord v => (ForeignPtr C.C_Encoder -> Word64 -> IO ()) -> Word -> PBEncoder c v (Cls v)
+wrap :: Ord v => (ForeignPtr C.C_Encoder -> Int64 -> IO ()) -> Int -> PBEncoder c v (Cls v)
 wrap pbf i = do
-    (c, vs, encoder) <- gets $ error "PBEncoder not initialized"
+    (c, vs, encoder) <- gets $ fromMaybe $ error "PBEncoder not initialized"
     lift $ pbf encoder $ cn i
     rawClauses <- lift $ C.getClauses encoder
     let (clauses, vs') = runState (toClauses (wordToVar c) rawClauses) vs

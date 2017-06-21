@@ -12,7 +12,7 @@ import Data.Functor.Identity
 import Control.Monad
 
 main :: IO ()
-main = mapM_ (mapM_ putStrLn . showSolution) $ cryptoMiniSat `solveAll` Odd [var "a", var "b", var "c"]
+main = mapM_ (mapM_ putStrLn . showSolution) $ cryptoMiniSat `solveAll` All [var "a", var "b", var "c"]
 
 showSolution sol = "============" : (pad $ map (bimap showVar showRes) $ Map.toList sol)
     where

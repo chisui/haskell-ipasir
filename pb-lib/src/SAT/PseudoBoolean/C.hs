@@ -27,6 +27,9 @@ import SAT.PseudoBoolean.C.Types as Export
 import SAT.PseudoBoolean.C.Bindings
 import SAT.PseudoBoolean.Config
 
+import Debug.Trace
+
+
 data Comp
     = CLeq
     | CGeq
@@ -36,7 +39,7 @@ data Comp
 coerceEnum :: (Enum a, Enum b) => a -> b
 coerceEnum = toEnum . fromEnum
 
-encoder :: CardinalityMethod a => Config a -> [WeightedLit] -> Comp -> Word64 -> Word64 -> Int -> IO (ForeignPtr C_Encoder)
+encoder :: CardinalityMethod a => Config a -> [WeightedLit] -> Comp -> Int64 -> Int64 -> Int -> IO (ForeignPtr C_Encoder)
 encoder config lits comp lowerBound upperBound firstFreeLit = do
     ptr <- mallocArray (length lits) :: IO (Ptr WeightedLit)
     pokeArray (castPtr ptr) lits
@@ -71,15 +74,24 @@ toEncoder = new_C_Encoder <$> (coerceEnum <$> pb_encoder)
                           <*> approximate_max_value
 
 
-encodeNewGeq :: ForeignPtr C_Encoder -> Word64 -> IO ()
-encodeNewGeq encoderPtr bound = withForeignPtr encoderPtr (`c_encodeNewGeq` coerceNum bound)
-encodeNewLeq :: ForeignPtr C_Encoder -> Word64 -> IO ()
-encodeNewLeq encoderPtr bound = withForeignPtr encoderPtr (`c_encodeNewLeq` coerceNum bound)
+encodeNewGeq :: ForeignPtr C_Encoder -> Int64 -> IO ()
+encodeNewGeq encoderPtr bound = withForeignPtr encoderPtr doGeq
+    where
+        doGeq ptr = do
+            traceM $ "geq:" ++ show bound
+            c_encodeNewGeq ptr $ coerceNum bound
+encodeNewLeq :: ForeignPtr C_Encoder -> Int64 -> IO ()
+encodeNewLeq encoderPtr bound = withForeignPtr encoderPtr doLeq
+    where
+        doLeq ptr = do
+            traceM $ "leq:" ++ show bound
+            c_encodeNewLeq ptr $ coerceNum bound
 
 getClauses :: ForeignPtr C_Encoder -> IO [[Lit Word]]
 getClauses encoder = do
     clausesPtr <- withForeignPtr encoder c_getClauses
     clauses <- peek clausesPtr
+    traceM $ show clauses
     return $ map (map readLit . toList) $ toList clauses
 
-readLit i = lit (i > 0) $ coerceEnum $ abs i - 1
+readLit i = lit (i > 0) $ coerceEnum $ abs i
