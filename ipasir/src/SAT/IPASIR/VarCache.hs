@@ -101,7 +101,7 @@ vars = Vec.toList . i2v
 -- | get the integer value for given variable.
 -- This will cause an error if the variable is not in the cache.
 varToInt :: Ord v => VarCache v -> Var v -> Word
-varToInt vc v = fromMaybe (error "variable not in VarCache") $ Map.lookup v $ v2i vc
+varToInt vc v = (+ 1) $ fromMaybe (error "variable not in VarCache") $ Map.lookup v $ v2i vc
 
 -- | maps all variables in given clauses to integers using @varToInt@
 clausesToInt :: (Functor f2, Functor f1, Functor f, Ord v) => VarCache v -> f (f1 (f2 (Var v))) -> f (f1 (f2 Word))
@@ -110,7 +110,7 @@ clausesToInt vc = ((<$>).(<$>).(<$>)) (varToInt vc)
 -- | get the variable for given integer.
 -- This will cause an error if the given integer is not associated with a variable.
 intToVar :: VarCache v -> Word -> Var v
-intToVar vc w = fromMaybe (error $ "VarCache has no variable for " ++ show w) $i2v vc Vec.!? fromEnum w
+intToVar vc w = fromMaybe (error $ "VarCache has no variable for " ++ show w) $i2v vc Vec.!? (fromEnum w - 1) 
 
 
 insert :: Ord v => VarCache v -> Var v -> (Var v, VarCache v)
