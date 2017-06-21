@@ -10,14 +10,14 @@ import SAT.IPASIR.VarCache as Export
 import SAT.IPASIR.Formula as Export 
     ( Formula
     , GeneralFormula
-        ( Var
-        , Yes
+        ( Yes
         , No
         , Not
         , All
         , Some
         , Odd 
         )
+    , var
     , notB
     , (&&*)
     , (||*)
