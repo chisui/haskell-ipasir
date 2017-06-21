@@ -1,4 +1,6 @@
-{-# LANGUAGE KindSignatures, ScopedTypeVariables #-}
+{-# LANGUAGE KindSignatures  #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE GADTs #-}
 
 module SAT.IPASIR.FormulaPrinting where
 
@@ -19,80 +21,57 @@ import SAT.IPASIR.Literals
 import SAT.IPASIR.VarCache
 import SAT.IPASIR.Solver
 
-tester1 = Var 1 &&* Not (Var 2) &&* (Var 1 ||* Var 2)
-tester2 = Var 1 &&* Var 2 &&* (Var 1 ->* Var 2) &&* Not (Var 2 ->* Var 1) 
-tester3 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 &&* Var 4) ->* Var 3) )
-tester4 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 <->* Var 4) ->* Var 3) )
-tester5 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* Var 2))
-tester6 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* No))
-tester7 = Not $ Odd $ map Var "ab" 
-tester8 = Odd $ map Var "abc"
-tester9 = Odd [ Not $ Var 'a', Not $ Var 'b', Not $Var 'c']
-tester0 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', All [Var 'a',Var 'b']]) ] )
-tester10 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', Odd [Var 'a', Some [All [Var 'x', Var 'c'], Var 'c']]]) ] )
+tester1 = Var 1 &&* Not (Var 2) &&* (Var 1 ||* Var 2) :: Formula Int
+tester2 = Var 1 &&* Var 2 &&* (Var 1 ->* Var 2) &&* Not (Var 2 ->* Var 1) :: Formula Int
+tester3 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 &&* Var 4) ->* Var 3) ):: Formula Int
+tester4 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 <->* Var 4) ->* Var 3) ):: Formula Int
+tester5 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* Var 2)):: Formula Int
+tester6 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* No)):: Formula Int
+tester7 = Not $ Odd $ map Var "ab"  :: Formula Char
+tester8 = Odd $ map Var "abc" :: Formula Char
+tester9 = Odd [ Not $ Var 'a', Not $ Var 'b', Not $Var 'c'] :: Formula Char
+tester0 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', All [Var 'a',Var 'b']]) ] ) :: Formula Char
+tester10 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', Odd [Var 'a', Some [All [Var 'x', Var 'c'], Var 'c']]]) ] ) 
 
-tester11 = Some [Odd [Some [Var 3, Var 4], Var 2],  Var 1]
-tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Var 2]]
+tester11 = Some [Odd [Some [Var 3, Var 4], Var 2],  Var 1] :: Formula Int
+tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Var 2]] :: Formula Int
 
 data TransformationStep = TSNormal | TSReduced | TSDemorgen | TSHelperDefs | TSHelperForm | TSXCNF | TSCNF
 
-class Foldable f => TraversableFormula (f :: * -> *) where
-    isNegation  :: f v -> Bool
-    isList      :: f v -> Bool
     -- Yes and No are also Terminals.
-    isTerminal  :: f v -> Bool
-    isTerminal x = not (isNegation x) && not (isList x)
-    unpackVar   :: f v -> Maybe v
-    isVar       :: f v -> Bool
-    isVar       = isJust . unpackVar
-    getInnerFormulas :: f v -> [f v]
-    showElem    :: Show v => f v -> String
-    foldFormula :: ( a -> f v -> a) -> a -> f v ->  a
-    foldFormula f starter form = foldl (foldFormula f) next $ getInnerFormulas form
-        where
-            next = f starter form
+isTerminal  :: GeneralFormula s v -> Bool
+isTerminal x = not (isNegation x) && not (isList x)
+isVar       :: GeneralFormula s v -> Bool
+isVar       = isJust . unpackVar
+foldFormula :: ( a -> GeneralFormula s v -> a) -> a -> GeneralFormula s v ->  a
+foldFormula f starter form = foldl (foldFormula f) next $ getInnerFormulas form
+    where
+        next = f starter form
+isNegation (Not _) = True
+isNegation _       = False
+isList (All _)     = True
+isList (Some _)    = True
+isList (Odd _)    = True
+isList _           = False
+getInnerFormulas (Not f)   = [f]
+getInnerFormulas (All l)   = l
+getInnerFormulas (Some l)  = l
+getInnerFormulas (Odd l)  = l
+getInnerFormulas _         = []
+showElem Yes       = "YES  "
+showElem No        = "NO   "
+showElem (All l)   = "ALL  "
+showElem (Some l)  = "SOME "
+showElem (Odd l)   = "ODD  "
+showElem (Not f)   = "-"
+showElem (Var x)   = show x
+showElem (LVar (Pos x)) = '+' : show x
+showElem (LVar (Neg x)) = '-' : show x
+unpackVar (Var x)  = Just x
+unpackVar (LVar x) = Just $ extract x
+unpackVar _        = Nothing
 
-instance TraversableFormula Formula where
-    isNegation (Not _) = True
-    isNegation _       = False
-    isList (All _)     = True
-    isList (Some _)    = True
-    isList (Odd _)    = True
-    isList _           = False
-    getInnerFormulas (Not f)   = [f]
-    getInnerFormulas (All l)   = l
-    getInnerFormulas (Some l)  = l
-    getInnerFormulas (Odd l)  = l
-    getInnerFormulas _         = []
-    showElem Yes       = "YES  "
-    showElem No        = "NO   "
-    showElem (All l)   = "ALL  "
-    showElem (Some l)  = "SOME "
-    showElem (Odd l)   = "ODD  "
-    showElem (Not f)   = "-"
-    showElem (Var x)   = show x
-    unpackVar (Var x)  = Just x
-    unpackVar _        = Nothing
-
-instance TraversableFormula DFormula where
-    isNegation _       = False
-    isList (DAll _)    = True
-    isList (DSome _)   = True
-    isList (DOdd _)    = True
-    isList _           = False
-    getInnerFormulas (DAll l)  = l
-    getInnerFormulas (DSome l) = l
-    getInnerFormulas (DOdd l) = l
-    getInnerFormulas _         = []
-    showElem (DAll l)  = "ALL  "
-    showElem (DSome l) = "SOME "
-    showElem (DOdd l)  = "ODD  "
-    showElem (DVar x)  = show x
-    unpackVar (DVar (Pos x)) = Just x
-    unpackVar (DVar (Neg x)) = Just x
-    unpackVar _        = Nothing
-
-getVars :: (TraversableFormula f) => f v -> [v]
+getVars :: GeneralFormula s v -> [v]
 getVars = foldFormula f []
     where
         f list form
@@ -195,43 +174,6 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
                 
         isHorn :: [Lit v] -> Bool
         isHorn = (<=1) . length . filter sign
-                
-{-
-        lengthClauses c  = map length c
-        isHornClauses c  = map isHorn c
-        calcedClauses c  = zip (lengthClauses c) (isHornClauses c)
-        maxLength        = foldl max 0 . lengthClauses
-        statsClauses c n = (length relevant, length $ filter snd relevant )
-            where relevant = filter ((==n).fst) $ calcedClauses c
-        
-        reduced    = rFormula formula
-        (ors,xors) = formulaToNormalform emptyCache formula
-        horn       = filter isHorn ors
-        transformed= concat $ map oddToCNF xors
-        transHorn  = filter isHorn ors
-        lors       = length ors
-        lxors      = length xors
-        lhorn      = length horn
-        ltrans     = length transformed
-        ltransHorn = length transHorn
-        
-        isHorn :: [Lit v] -> Bool
-        isHorn = (<=1) . length . filter sign
-
-        yesNoOcc        = foldFormula yesNoCounter 0 formula
-            where
-                yesNoCounter n Yes = n+1
-                yesNoCounter n No  = n+1
-                yesNoCounter n form= n
-
-        varsNormal       = getVars formula
-        varsNormalCount  = length $ nub varsNormal
-        occNormalCount  = length $ varsNormal
-        varsReduced      = getVars $ reduced
-        varsReducedCount = length $ nub varsReduced
-        occReducedCount = length $ varsReduced
-        varsFinalCount   = length $ nub $ concat $ ors++xors
--}
 
 showFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> String
 showFormulaTransformation = showFormulaTransformation' (\i->"Helper"++show i)
@@ -265,7 +207,8 @@ printDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
         
         helperFormulas= map (uncurry transHelperForm) def' :: [String]
         
-        printDef name formula = name ++ "\n" ++ i (showFormulaEither showE formula) ++ "\n\n" 
+        printDef :: String -> Formula (Var v) -> String
+        printDef name form = name ++ "\n" ++ i (showFormulaEither showE form) ++ "\n\n" 
             where
                 i = indent (tab++tab) (take (length (tab++tab)) $ " :<=>"++repeat ' ')
         indent s sFirst string = intercalate "\n" $ (sFirst' ++ head lines) : (map (s++) $ tail lines)
@@ -283,33 +226,32 @@ printDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
                 (or,xor)            = partitionClauses True xcnf :: ([[Lit (Var v)]],[Lit [Var v]])
                 (hName,(_,xcnf,_))  = runState (innerForm formula) (newCache,[],[])
                 hName'              = extract hName
-                unpacked            = map (\(DVar v) -> v) $ getInnerFormulas formula
+                unpacked            = map (\(LVar v) -> v) $ getInnerFormulas formula
                 innerForm :: (Show v, Eq v) => DFormula (Var v) -> Trans v (Lit (Var v))
-                innerForm (DAll l)  = litOfAnd unpacked
-                innerForm (DSome l) = litOfOr  unpacked
-                innerForm (DOdd l)  = litOfXor $ map extract unpacked <$ head unpacked
+                innerForm (All l)  = litOfAnd unpacked
+                innerForm (Some l) = litOfOr  unpacked
+                innerForm (Odd l)  = litOfXor $ map extract unpacked <$ head unpacked
                 (💩) :: (Functor f1, Functor f2, Functor f3) => (a -> b) -> f1 (f2 (f3 a)) -> f1 (f2 (f3 b))
                 (💩)                 = (<$>).(<$>).(<$>)
                 
 
 
-showFormula :: (TraversableFormula f, Show v) => f v -> String
+showFormula :: (Show v) => GeneralFormula s v -> String
 showFormula = showFormula' tab showElem
 
-showFormulaEither :: (TraversableFormula f, Show v) => (Word -> String) -> f (Var v) -> String
+showFormulaEither :: Show v => (Word -> String) -> GeneralFormula s (Var v) -> String
 showFormulaEither showHelper = showFormula' tab shower
     where
     --    show :: Formula (ELit v) -> String
         shower x = maybe (showElem x) (either showHelper show) (unpackVar x)
 
-
-showFormula' :: forall f v. (TraversableFormula f) =>  String -> (f v -> String) -> f v -> String
+showFormula' :: forall fo v s. String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> String
 showFormula' tab showFunction f
     | isList f     = showFunction f ++ listHelper (getInnerFormulas f)
     | isNegation f = showFunction f ++ showFormula' tab showFunction (head $ getInnerFormulas f)
     | isTerminal f = showFunction f
         where
-            listHelper :: [f v] -> String
+    --        listHelper :: [f v] -> String
             listHelper list
                 | allLits = "[" ++ concat lines ++ tab ++ "]"
                 | otherwise   = "[\n" ++ intercalate "\n" lines ++ "\n]"

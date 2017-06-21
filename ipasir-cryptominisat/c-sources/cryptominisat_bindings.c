@@ -11,7 +11,8 @@ void crypto_add_xor_clause(void* rawSolver, void* vars, size_t num_vars, bool rh
 
     unsigned maxLit = 0;
     unsigned* vec = (unsigned*) vars;
-    for (int i=0; i<num_vars; i++) {
+    int i;
+    for (i=0; i<num_vars; i++) {
         unsigned lit = vec[i];
         printf("%d ", lit);
         maxLit = max(maxLit, lit);
