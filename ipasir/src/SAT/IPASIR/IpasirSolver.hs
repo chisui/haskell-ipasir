@@ -48,7 +48,7 @@ instance Ipasir i => MSolver (IpasirSolver i) where
         lift $ mapM mSolve' solvers
         where
             mSolve' :: (Ord v, Ipasir i) => IpasirSolver i v -> IO (ESolution v)
-            mSolve' solver@(IpasirSolver i vc) = bimap (mapLits vc) (mapLits vc) <$> mSolveInt solver
+            mSolve' solver@(IpasirSolver i vc) = bimap (Set.map (intToVar vc)) (mapLits vc) <$> mSolveInt solver
 
     mSolveAllForVars :: forall v m. (Ord v, Traversable m) => [Var v] -> StateT (m (IpasirSolver i v)) IO (m (Conflict v, [Solution v]))
     mSolveAllForVars ls = do
@@ -58,7 +58,7 @@ instance Ipasir i => MSolver (IpasirSolver i) where
             solve :: (Ord v, Ipasir i) => IpasirSolver i v -> IO (Conflict v, [Solution v])
             solve s@(IpasirSolver i vc) = do
                 (conflict, sols) :: (IConflict Word, [ISolution Word]) <- solve' =<< mSolveInt s
-                return (mapLits vc conflict, mapLits vc <$> sols)
+                return (Set.map (intToVar vc) conflict, mapLits vc <$> sols)
                 where
                     ints :: [Word]
                     ints = map (varToInt vc) ls
@@ -105,7 +105,7 @@ mapLits :: Ord v => VarCache v -> Map.Map Word a -> Map.Map (Var v) a
 mapLits vc = Map.mapKeys (intToVar vc)
 
 type ISolution v = Map.Map v Val
-type IConflict v = Map.Map v Bool
+type IConflict v = Set.Set v
 type IESolution v = Either (IConflict v) (ISolution v)
 
 mSolveInt :: Ipasir i => IpasirSolver i v -> IO (IESolution Word)
@@ -114,7 +114,9 @@ mSolveInt (IpasirSolver s vc) = do
     case sol of
         Nothing -> error "solving interrupted"
         (Just True) -> Right <$> makeSolution ( ((sign <$>) <$> ) . (`ipasirVal` s))
-        (Just False) -> Left <$> makeSolution (`ipasirFailed` s)
+        (Just False) -> Left <$> makeConflict (`ipasirFailed` s)
     where
+        makeConflict :: (Word -> IO Bool) -> IO (Set.Set Word)
+        makeConflict ioOp = Map.keysSet . Map.filter id <$> makeSolution ioOp
         makeSolution :: (Word -> IO a) -> IO (Map.Map Word a)
         makeSolution ioOp = Map.fromList <$> mapM (\i -> (i,) <$> ioOp i) [1..numVars vc]

@@ -3,7 +3,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Spec.SAT.IPASIR where
 
+import qualified Data.Set as Set
 import qualified Data.Map as Map
+
 import Data.Monoid
 import Data.Proxy
 import Control.Monad.Trans.Class
@@ -22,7 +24,7 @@ instance MSolver MySolver where
         return ()
     mSolve = do
         solvers <- get
-        lift $ mapM (const $ return $ Left Map.empty) solvers
+        lift $ mapM (const $ return $ Left Set.empty) solvers
     mSolveAllForVars _ = undefined
 instance (Ord l) => Clauses MySolver [[Lit l]] where
     addClauses _ = return ()
