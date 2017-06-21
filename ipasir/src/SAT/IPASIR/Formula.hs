@@ -69,7 +69,7 @@ deriving instance Ord v  => Ord  (GeneralFormula s v)
 deriving instance Eq v   => Eq   (GeneralFormula s v)
 deriving instance Functor (GeneralFormula s)
 
-instance (IsString v) => IsString (GeneralFormula Normal v) where
+instance (IsString v) => IsString (Formula v) where
     fromString = Var . fromString
 
 instance Foldable (GeneralFormula s) where
