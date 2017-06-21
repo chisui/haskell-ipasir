@@ -139,6 +139,12 @@ data DFormula v
     | DOdd [DFormula v]
     deriving (Show, Eq, Ord)
 
+instance Foldable DFormula where
+    foldMap g (DVar  v)  = g $ extract v
+    foldMap g (DAll  fs) = deepFoldMap g fs
+    foldMap g (DSome fs) = deepFoldMap g fs
+    foldMap g (DOdd  fs) = deepFoldMap g fs
+
 demorgen :: Formula v -> DFormula v
 demorgen Yes  = DAll  []
 demorgen No   = DSome []
