@@ -102,6 +102,9 @@ instance (Ord v, FormulaOperation (GeneralFormula s)) => HasVariables (GeneralFo
             (_,_,_,defs) = runTransComplete emptyCache $ transCnf $ demorgen c
             helper = map id $ lefts $ map fst defs
 
+var :: v -> Formula v
+var = Var
+
 notB (Not x) = x
 notB f       = Not f
 
