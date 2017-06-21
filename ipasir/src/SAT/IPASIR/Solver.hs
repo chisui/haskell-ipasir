@@ -79,6 +79,8 @@ class (MSolver s) => Solver s where
     solveAll m c = solveAllForVars m c $ Set.toList $ getVariables c emptyCache
 
 {-# SPECIALIZE expandSolution :: Solution v -> [Map.Map (Var v) Bool] #-}
+{-# SPECIALIZE expandSolution :: Solution v -> First (Map.Map (Var v) Bool) #-}
+{-# SPECIALIZE expandSolution :: Solution v -> Last (Map.Map (Var v) Bool) #-}
 expandSolution :: (Traversable t, Applicative f, Monoid (f Bool), Monoid (f (Maybe Bool))) => t (Maybe Bool) -> f (t Bool)
 expandSolution = traverse $ maybe (pure True <> pure False) pure
 
