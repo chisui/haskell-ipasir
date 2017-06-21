@@ -8,7 +8,16 @@ import SAT.IPASIR.IpasirSolver as Export
 import SAT.IPASIR.Solver as Export
 import SAT.IPASIR.VarCache as Export
 import SAT.IPASIR.Formula as Export 
-    ( Formula(..)
+    ( Formula
+    , GeneralFormula
+        ( Var
+        , Yes
+        , No
+        , Not
+        , All
+        , Some
+        , Odd 
+        )
     , notB
     , (&&*)
     , (||*)
