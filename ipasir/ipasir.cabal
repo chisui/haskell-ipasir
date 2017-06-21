@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     SAT.IPASIR
                      , SAT.IPASIR.Api
-  other-modules:       SAT.IPASIR.Solver
+                     , SAT.IPASIR.Solver
                      , SAT.IPASIR.IpasirSolver
                      , SAT.IPASIR.Literals
                      , SAT.IPASIR.Formula
