@@ -7,6 +7,7 @@ import Data.Maybe
 import Data.Bits
 import Data.List.Split
 import Control.Comonad
+import Data.Foldable
 import qualified Data.List.Split as Split
 import qualified Data.Set as Set
 
@@ -16,6 +17,7 @@ import SAT.IPASIR.Formula
 import SAT.IPASIR.Clauses
 import SAT.IPASIR.Literals
 import SAT.IPASIR.VarCache
+import SAT.IPASIR.Solver
 
 tester1 = Var 1 &&* Not (Var 2) &&* (Var 1 ||* Var 2)
 tester2 = Var 1 &&* Var 2 &&* (Var 1 ->* Var 2) &&* Not (Var 2 ->* Var 1) 
@@ -34,7 +36,7 @@ tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Va
 
 data TransformationStep = TSNormal | TSReduced | TSDemorgen | TSHelperDefs | TSHelperForm | TSXCNF | TSCNF
 
-class TraversableFormula (f :: * -> *) where
+class Foldable f => TraversableFormula (f :: * -> *) where
     isNegation  :: f v -> Bool
     isList      :: f v -> Bool
     -- Yes and No are also Terminals.
@@ -49,11 +51,6 @@ class TraversableFormula (f :: * -> *) where
     foldFormula f starter form = foldl (foldFormula f) next $ getInnerFormulas form
         where
             next = f starter form
-    toList :: f v -> [v]
-    toList formula
-        |  = catMaybes $ unpackVar formula : concat (map toList (getInnerFormulas formula))
-        where
-            var = unpackVar formula
 
 instance TraversableFormula Formula where
     isNegation (Not _) = True
@@ -104,86 +101,100 @@ getVars = foldFormula f []
 
 tab = "    "
 
+showFormulaStatistics :: (Ord v) => Formula v -> String
 showFormulaStatistics formula = "Incoming Formula:\n"                      ++ toText part1 ++ 
                                 "\nAfter Reduction:\n"                     ++ toText part2 ++ 
                                 "\nFinal Form general information:\n"      ++ toText part3 ++
                                 "\nIn Final Form (or and xor seperated):\n"++ toText part4 ++
-              --                  "or-clauses:\n"                            ++ toText part5 ++
-              --                  "xor-clauses:\n"                           ++ toText part6 ++
-                                "\nIn Final Form (xors transformed):\n"    ++ toText part7 
-              --                  "clauses:\n"                               ++ toText part8
+                                "or-clauses:\n"                            ++ toText part5 ++
+                                "xor-clauses:\n"                           ++ toText part6 ++
+                                "\nIn Final Form (xors transformed):\n"    ++ toText part7 ++
+                                "clauses:\n"                               ++ toText part8
     where
         toText :: [String] -> String
         toText l = tab ++ intercalate ('\n':tab) l ++ "\n"
         
         part1 = ["Number of different Vars:              " ++ show varsNormalCount, 
-                 "Incedence of Vars:                     " ++ show inceNormalCount,
-                 "Incedence of Yes/No:                   " ++ show yesNoInceCount ]
+                 "Occurences of Vars:                    " ++ show occNormalCount,
+                 "Occurences of Yes/No:                  " ++ show yesNoOccCount ]
         part2 = ["Number of different Vars:              " ++ show varsReducedCount,
-                 "Incedence of Vars:                     " ++ show inceReducedCount,
+                 "Occurences of Vars:                    " ++ show occReducedCount,
                  "Number of removed Vars:                " ++ show (varsNormalCount-varsReducedCount),
-                 "Number of removed incedences:          " ++ show (inceNormalCount-inceReducedCount)]
+                 "Number of removed occurences:          " ++ show (occNormalCount-occReducedCount)]
         part3 = ["Number of Vars:                        " ++ show varsFinalCount ,
                  "Number of new Vars:                    " ++ show (varsFinalCount - varsReducedCount)]
         part4 = ["Number of or-clauses:                  " ++ show lors,
                  "or-clauses, which are in horn form:    " ++ show lhornX,
                  "Number of xor-clauses:                 " ++ show lxors,
-                 "Incedence of Vars in or:               " ++ show inceVarsOrs,
-                 "Incedence of Vars in xor:              " ++ show inceVarsXOrs ]
+                 "Occurences of Vars in or:              " ++ show occVarsOr,
+                 "Occurences of Vars in xor:             " ++ show occVarsXOr ]
         part5 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses with " 
                   ++ show hornCount ++ " of them Horn."
-                | n <- [0..maxLength ors], let (count, hornCount) = statsClauses ors n ]
-        part6 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses" | n <- [0..maxLength xors], let (count, _) = statsClauses xors n ]
+                | n <- [0..maxLength ors], let (count, hornCount) = statsClauses n ors ]
+        part6 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses" | n <- [0..maxLengthX xors], let count = statsXClauses n xors ]
         part7 = ["Number or:                             " ++ show lcnf,
                  "Clauses, which are in horn form:       " ++ show lhorn,
-                 "Incedence of Vars:                     " ++ show inceVarsCnf]
+                 "Occurences of Vars:                    " ++ show occVarsCnf]
         part8 = ["Length "++ show n ++ ":  " ++ show count ++ " clauses with " 
                   ++ show hornCount ++ " of them Horn."
-                | n <- [0..maxLength (transformed++ors)], let (count, hornCount) = statsClauses (transformed++ors) n ]
+                | n <- [0..maxLength cnf'], let (count, hornCount) = statsClauses n cnf' ]
 
-        reduced      = rFormula formula
-        demorgen     = demorgen reduced
-        (cache,xcnf) = formulaToNormalform emptyCache formula
-        cnf          = normalformToCNF xcnf
+        reduced'      = rFormula formula
+        demorgen'     = demorgen reduced'
+        (cache,xcnf') = formulaToNormalform emptyCache formula
+        cnf'          = normalformToCNF xcnf'
 
     -- Normal Formula 
-        varsNormalCount = length $ nub $ toList formula
-        inceNormalCount = length $ toList formula
-        yesNoInceCount  = yesNoInce formula
-        
+        varsNormalCount= length $ nub $ toList formula
+        occNormalCount = length $ toList formula
+        yesNoOccCount  = yesNoCounter formula :: Integer
+            where
+                yesNoCounter Yes     = 1
+                yesNoCounter No      = 1
+                yesNoCounter f       = sum $ map yesNoCounter $ getInnerFormulas f
+
     -- Reduced Formula 
-        varsReducedCount = length $ nub $ toList reduced
-        inceReducedCount = length $ toList reduced
+        varsReducedCount = length $ nub $ toList reduced'
+        occReducedCount = length $ toList reduced'
         
     -- Final Form general information
-        varsFinalCount   = Set.size $ getVariables formula
+        varsFinalCount   = Set.size $ getVariables formula emptyCache
         
     --XCNF
-        (ors,xors) = partitionClause True xcnf
+        (ors,xors) = xcnf'
         hornX  = filter isHorn ors
         lors   = length ors
         lhornX = length hornX
         lxors  = length xors
-        inceVarsOr  = sum $ map length ors
-        inceVarsXOr = sum $ map length xors
+        occVarsOr  = sum $ map length ors
+        occVarsXOr = sum $ map length xors
         
     -- CNF
-        horn         = filter isHorn cnf
-        lcnf         = length cnf
+        horn         = filter isHorn cnf'
+        lcnf         = length cnf'
         lhorn        = length horn
-        inceVarsCnf  = sum $ map length cnf
+        occVarsCnf  = sum $ map length cnf'
+
         
-        
-        yesNoInce        = foldFormula yesNoCounter 0 formula
+        maxLength :: [[a]] -> Int
+        maxLength = foldl max 0 . map length
+
+        maxLengthX :: [Lit [a]] -> Int
+        maxLengthX = foldl max 0 . map length . map extract
+
+        statsClauses :: Int -> [OrClause v] -> (Int, Int)
+        statsClauses clauseLength allClauses = (length clauses, length horns)
             where
-                yesNoCounter n Yes = n+1
-                yesNoCounter n No  = n+1
-                yesNoCounter n form= n
+                clauses = filter ((==clauseLength).length) allClauses
+                horns   = filter isHorn clauses
+
+        statsXClauses :: Int -> [XOrClause v] -> Int
+        statsXClauses clauseLength allClauses = length clauses
+            where
+                clauses = filter ((==clauseLength).length) allClauses
                 
         isHorn :: [Lit v] -> Bool
         isHorn = (<=1) . length . filter sign
-        
-        maxLength        = foldl max 0 . lengthClauses
                 
 {-
         lengthClauses c  = map length c
@@ -207,7 +218,7 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         isHorn :: [Lit v] -> Bool
         isHorn = (<=1) . length . filter sign
 
-        yesNoInce        = foldFormula yesNoCounter 0 formula
+        yesNoOcc        = foldFormula yesNoCounter 0 formula
             where
                 yesNoCounter n Yes = n+1
                 yesNoCounter n No  = n+1
@@ -215,10 +226,10 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
 
         varsNormal       = getVars formula
         varsNormalCount  = length $ nub varsNormal
-        inceNormalCount  = length $ varsNormal
+        occNormalCount  = length $ varsNormal
         varsReduced      = getVars $ reduced
         varsReducedCount = length $ nub varsReduced
-        inceReducedCount = length $ varsReduced
+        occReducedCount = length $ varsReduced
         varsFinalCount   = length $ nub $ concat $ ors++xors
 -}
 
