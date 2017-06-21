@@ -5,6 +5,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module SAT.IPASIR.Formula where
 
@@ -90,8 +91,8 @@ instance Traversable (GeneralFormula s) where
     traverse _ No        = pure No
 deepTraverse g = traverse (traverse g)
 
-instance (Ord v, FormulaOperation fo) => HasVariables (fo v) where
-    type VariableType (fo v) = v
+instance (Ord v, FormulaOperation (GeneralFormula s)) => HasVariables (GeneralFormula s v) where
+    type VariableType (GeneralFormula s v) = v
     getAllVariables f vc = map extract $ concat $ snd $ formulaToCNF vc f
 
     getVariables c vc = Set.map Left (getHelpers c vc) `Set.union` Set.map Right (getLabels c)
@@ -238,7 +239,7 @@ runTransComplete cache trans = (mainCNF, newCache, cnfs, defs)
         
 -- -----------------------------------------------------------------------------
 
-formulaToNormalform :: (Ord v, FormulaOperation fo) => VarCache v -> fo v -> (VarCache v, NormalForm (Var v))
+formulaToNormalform :: (Ord v, FormulaOperation (GeneralFormula s)) => VarCache v -> GeneralFormula s v -> (VarCache v, NormalForm (Var v))
 formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgen form
     where
         cache' = snd $ newVars cache $ Set.toList $ getLabels form
@@ -246,7 +247,7 @@ formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgen form
 normalformToCNF :: Eq v => NormalForm (Var v) -> CNF (Var v)
 normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)
 
-formulaToCNF :: (Ord v, FormulaOperation fo) => VarCache v -> fo v -> (VarCache v , CNF (Var v))
+formulaToCNF :: (Ord v, FormulaOperation (GeneralFormula s)) => VarCache v -> GeneralFormula s v -> (VarCache v , CNF (Var v))
 formulaToCNF cache formula = second normalformToCNF $ formulaToNormalform cache formula
 
 normalformToFormula :: forall v. NormalForm (Var v) -> Formula (Var v)
