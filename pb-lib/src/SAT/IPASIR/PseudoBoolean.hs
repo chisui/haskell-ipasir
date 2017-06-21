@@ -1,16 +1,15 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module SAT.IPASIR.PseudoBoolean
     ( module PB
     ) where
 
-import qualified Data.Map as Map
-
-import Foreign.Ptr (nullPtr)
-import Foreign.ForeignPtr (newForeignPtr_)
 
 import qualified Data.Map as Map
 
+import Data.Functor.Identity
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
 
@@ -44,20 +43,28 @@ instance (C.CardinalityMethod c, Ord v, Ipasir i) => Clauses (IpasirSolver i) (P
                     weightedLits = asLit <$> Map.toList (PB.vars c)
                     asLit (v, i) = varToInt cache v $-$ fromInteger i
 
-minimizingOverVars :: (MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit (Var v)]]) => PBConstraint c v -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
+minimizingOverVars :: forall s v c m. (MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit (Var v)]], VariableType [[Lit (Var v)]] ~ v, Traversable m) => PBConstraint c v -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
 minimizingOverVars constraint = do
-    (clauses, encoder) <- lift $ runStateT (PB.newPBEncoder constraint) (newForeighnPtr_ nullPtr)
+    (clauses, encoder) <- lift $ runStateT (PB.newPBEncoder constraint) Nothing
     addClauses clauses
     sol <- mSolve
-    let importantVars = keys $ vars constraint :: [Vars v]
-    minimizingOverVars' sol
+    idToM $ mapM (minimizingOverVars' encoder) sol
     where
-        minimizingOverVars' (Left confict)   = return (conflict, [])
-        minimizingOverVars' (Right solution) = do
-            let count = length $ filter (`Map.elem` solution) importantVars
-            newClauses <- lift $ evalStateT (pushUpperBound (count-1)) encoder
-            addClause newClauses
-            sol <- mSolve
-            (con, s') <- minimizingOverVars' sol
-            return (con, s'++[sol])
+        idToM :: StateT (Identity (s v)) IO (Identity (Conflict v, [Solution v])) -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
+        idToM body = do
+            state <- get
+            r <- lift $ mapM (runStateT body) state
+            put $ snd <$> r
+            return $ fst <$> r
+        importantVars :: [Var v]
+        importantVars = Map.keys $ PB.vars constraint
+        minimizingOverVars' :: Maybe (Enc c v) -> ESolution v -> StateT (Identity (s v)) IO (Identity (Conflict v, [Solution v]))
+        minimizingOverVars' _ (Left conflict)   = return $ return (conflict, [])
+        minimizingOverVars' encoder (Right solution) = do
+            let count = toEnum $ length $ filter (`Map.member` solution) importantVars
+            newClauses :: [[Lit (Var v)]] <- lift $ evalStateT (PB.pushUpperBound (count-1)) encoder
+            addClauses newClauses
+            (Identity sol) <- mSolve
+            (Identity (con, s')) <- minimizingOverVars' encoder sol
+            return $ return (con, s'++[solution])
 
