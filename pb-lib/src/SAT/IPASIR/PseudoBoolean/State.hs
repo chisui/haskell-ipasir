@@ -34,7 +34,7 @@ import qualified SAT.PseudoBoolean.C as C
 import Debug.Trace
 
 
-type WeightedLits v = Map.Map v Integer
+type WeightedLits v = Map.Map (I.Lit v) Integer
 
 data PBConstraint c v = PBConstraint
     { pbConfig  :: Config c
@@ -45,7 +45,7 @@ data PBConstraint c v = PBConstraint
     , upper     :: Int
     }
 
-type Vars v = Vec.Vector v
+type Vars v = Vec.Vector (I.Lit v)
 type Enc c v = (PBConstraint c v, Vars v, ForeignPtr C.C_Encoder)
 type PBEncoder c v r = StateT (Maybe (Enc c v)) IO r
 
@@ -78,13 +78,12 @@ wrap pbf i = do
 resolveVar :: Ord v => (Word -> v) -> I.Lit Word -> State (Vars v) (I.Lit v)
 resolveVar f lit = do
     maybeV <- gets (Vec.!? i)
-    v <- case maybeV of
+    case maybeV of
         Just v  -> return v
         Nothing -> do
-            let v' = f $ extract lit
+            let v' = f <$> lit
             modify ( `Vec.snoc` v')
             return v'
-    return $ v <$ lit
     where
         i = cn $ extract lit
 
@@ -93,8 +92,8 @@ toClauses f = mapM $ mapM $ resolveVar f
 nVars = length . Map.keys . vars
 weightedLits :: (C.CardinalityMethod c, Ord v) => PBConstraint c v -> [WeightedLit]
 weightedLits = map (\(v, i) -> v $-$ fromInteger i) . Map.toList . unwrappedVars
-unwrappedVars :: (C.CardinalityMethod c, Ord v) => PBConstraint c v -> Map.Map Word Integer
-unwrappedVars = Map.fromList . zipWith (\i (v, w) -> (i, w)) [0..] . sortOn fst . Map.toList . vars
+unwrappedVars :: (C.CardinalityMethod c, Ord v) => PBConstraint c v -> Map.Map Int Integer
+unwrappedVars = Map.fromList . zipWith (\i (v, w) -> (if I.sign v then i else -i, w)) [1..] . sortOn fst . Map.toList . vars
 
 cn :: (Enum a, Enum b) => a -> b
 cn = toEnum . fromEnum

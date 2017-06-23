@@ -7,7 +7,7 @@ module SAT.IPASIR.PseudoBoolean
     , minimizeOverVars
     ) where
 
-
+import Control.Comonad
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -26,7 +26,7 @@ import Debug.Trace
 
 instance (C.CardinalityMethod c, Ord v) => HasVariables (PBConstraint c v) where
     type VariableType (PBConstraint c v) = v
-    getAllVariables c _ = map Right $ Map.keys $ PB.vars c
+    getAllVariables c _ = map (Right . extract) $ Map.keys $ PB.vars c
 
 instance (C.CardinalityMethod c, Ord v, Ipasir i) => Clauses (IpasirSolver i) (PBConstraint c v) where
     addClauses c = do
@@ -45,7 +45,10 @@ instance (C.CardinalityMethod c, Ord v, Ipasir i) => Clauses (IpasirSolver i) (P
                     toClauses = undefined
                     nVars = length weightedLits
                     weightedLits = asLit <$> Map.toList (PB.vars c)
-                    asLit (v, i) = varToInt cache (Right v) $-$ fromInteger i
+                    asLit :: (Lit v, Integer) -> WeightedLit
+                    asLit (v, i) = lit $-$ fromInteger i
+                        where
+                            lit = toInt $ varToInt cache . Right <$> v
 
 
 cardinalitySolving :: forall s v c m. (Show v, MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit v]], VariableType [[Lit v]] ~ v, Monad m, Traversable m) => 
@@ -68,7 +71,7 @@ cardinalitySolving borderFunction constraint = do
             return $ fst =<< r
 
         importantVars :: [v]
-        importantVars = Map.keys $ PB.vars constraint
+        importantVars = map extract $ Map.keys $ PB.vars constraint
 
         minimizeOverVars' :: Maybe (Enc c v) -> (Int, Int) -> ESolution v -> StateT (Identity (s v)) IO (Conflict v, [Solution v])
         minimizeOverVars' _ _ (Left conflict)   = return (conflict, [])
@@ -80,10 +83,10 @@ cardinalitySolving borderFunction constraint = do
                 then error $ "You have to decrease the border-size! Old Border: " ++ show (lower, upper) ++ ", new border: " ++ show (lower, upper)
                 else do
                     lowerClauses <- if newUpper < upper
-                        then lift $ evalStateT (PB.pushUpperBound (newUpper)) encoder
+                        then lift $ evalStateT (PB.pushUpperBound newUpper) encoder
                         else return []
                     upperClauses <- if newLower > lower
-                        then lift $ evalStateT (PB.pushLowerBound (newLower)) encoder
+                        then lift $ evalStateT (PB.pushLowerBound newLower) encoder
                         else return []
                     return $ lowerClauses ++ upperClauses
 

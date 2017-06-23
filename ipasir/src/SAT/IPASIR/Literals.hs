@@ -76,3 +76,15 @@ neg (Neg a) = Pos a
 sign :: Lit a -> Bool
 sign (Pos _) = True
 sign (Neg _) = False
+
+-- | Coerces a @Literal@ of a @Num@ @n@ to a signed @Int@ where the sign is the literals sign.
+-- for this to work @n > 0@ has to hold.
+toInt :: (Ord a, Integral a, Show a) => Lit a -> Int
+toInt l = s * let n = extract l in
+        if n > 0
+            then fromEnum $ toInteger n
+            else error $ "can not coerce Literals with numbers <= 0 to Int: " ++ show n
+    where
+        s = if sign l
+            then 1
+            else -1
