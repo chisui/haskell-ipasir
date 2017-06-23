@@ -26,8 +26,6 @@ import Foreign.C.Types
 import SAT.IPASIR
 import SAT.IPASIR.Api
 
-import Debug.Trace
-
 
 newtype CryptoMiniSat = CryptoMiniSat (ForeignPtr ())
 

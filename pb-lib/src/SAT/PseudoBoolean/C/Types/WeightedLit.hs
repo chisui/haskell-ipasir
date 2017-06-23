@@ -19,7 +19,6 @@ instance Storable WeightedLit where
     alignment = sizeOf
     peek ptr = undefined
     poke ptr wl = do
-
         wlPtr <- new_WeightedLit (literal wl) (weight wl)
         poke (castPtr ptr) wlPtr
 

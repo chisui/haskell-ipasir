@@ -21,8 +21,6 @@ import SAT.PseudoBoolean
 import qualified SAT.PseudoBoolean.C as C
 import SAT.IPASIR.PseudoBoolean.State as PB
 
-import Debug.Trace
-
 
 instance (C.CardinalityMethod c, Ord v) => HasVariables (PBConstraint c v) where
     type VariableType (PBConstraint c v) = v
@@ -111,7 +109,7 @@ minimizeOverVars constraint = do
             put $ (runIdentity . snd) <$> r
             return $ fst =<< r
         importantVars :: [v]
-        importantVars = Map.keys $ PB.vars constraint
+        importantVars = map extract $ Map.keys $ PB.vars constraint
         minimizeOverVars' :: Maybe (Enc c v) -> ESolution v -> StateT (Identity (s v)) IO (Conflict v, [Solution v])
         minimizeOverVars' _ (Left conflict)   = return (conflict, [])
         minimizeOverVars' encoder (Right solution) = do

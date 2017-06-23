@@ -29,7 +29,7 @@ main = runSolver cryptoMiniSat doSolve
         pbConstraint = PBConstraint {
                 pbConfig = defaultConfig { config = Just AmkCard },
                 wordToVar = \i -> "helper" ++ show i,
-                vars = Map.fromList $ map (,1) ["a", "b", "c", "d", "e"],
+                vars = Map.fromList $ map (,1) [Pos "a", Pos "b", Pos "c", Pos "d", Pos "e"],
                 comp = CLeq,
                 lower = 0,
                 upper = 5

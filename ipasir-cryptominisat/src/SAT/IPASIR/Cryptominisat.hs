@@ -19,8 +19,6 @@ import Control.Monad.Trans.State.Lazy
 import SAT.IPASIR
 import SAT.IPASIR.Cryptominisat.C
 
-import Debug.Trace
-
 
 cryptoMiniSat :: Proxy (IpasirSolver CryptoMiniSat s)
 cryptoMiniSat = Proxy

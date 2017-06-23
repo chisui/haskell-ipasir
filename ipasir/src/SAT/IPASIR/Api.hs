@@ -5,7 +5,7 @@ import Control.Monad
 
 import SAT.IPASIR.Literals
 
-import Debug.Trace
+-- import Debug.Trace
 
 
 class Ipasir a where
@@ -19,10 +19,10 @@ class Ipasir a where
     
     ipasirAddClause :: [Lit Word] -> a -> IO ()
     ipasirAddClause [] s = do
-        traceM " 0"
+        --traceM " 0"
         ipasirAdd Nothing s
     ipasirAddClause (l:ls) s = do
-        traceM (show l)
+        --traceM (show l)
         ipasirAdd (Just l) s
         ipasirAddClause ls s
     

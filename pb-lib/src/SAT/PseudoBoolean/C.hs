@@ -27,8 +27,6 @@ import SAT.PseudoBoolean.C.Types as Export
 import SAT.PseudoBoolean.C.Bindings
 import SAT.PseudoBoolean.Config
 
-import Debug.Trace
-
 
 data Comp
     = CLeq
@@ -77,21 +75,16 @@ toEncoder = new_C_Encoder <$> (coerceEnum <$> pb_encoder)
 encodeNewGeq :: ForeignPtr C_Encoder -> Int64 -> IO ()
 encodeNewGeq encoderPtr bound = withForeignPtr encoderPtr doGeq
     where
-        doGeq ptr = do
-            traceM $ "geq:" ++ show bound
-            c_encodeNewGeq ptr $ coerceNum bound
+        doGeq ptr = c_encodeNewGeq ptr $ coerceNum bound
 encodeNewLeq :: ForeignPtr C_Encoder -> Int64 -> IO ()
 encodeNewLeq encoderPtr bound = withForeignPtr encoderPtr doLeq
     where
-        doLeq ptr = do
-            traceM $ "leq:" ++ show bound
-            c_encodeNewLeq ptr $ coerceNum bound
+        doLeq ptr = c_encodeNewLeq ptr $ coerceNum bound
 
 getClauses :: ForeignPtr C_Encoder -> IO [[Lit Word]]
 getClauses encoder = do
     clausesPtr <- withForeignPtr encoder c_getClauses
-    clauses <- peek clausesPtr
-    traceM $ show clauses
-    return $ map (map readLit . toList) $ toList clauses
+    rawClauses <- peek clausesPtr
+    return $ map (map readLit . toList) $ toList rawClauses
 
 readLit i = lit (i > 0) $ coerceEnum $ abs i
