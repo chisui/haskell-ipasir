@@ -92,9 +92,6 @@ cardinalitySolving borderFunction constraint = do
             (con, s') <- minimizeOverVars' encoder (newLower, newUpper) sol
             return (con, s'++[solution])
 
-minimizeStepWise' :: forall s v c m. (Show v, MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit v]], VariableType [[Lit v]] ~ v, Monad m, Traversable m) => 
-                    m (s v) -> PBConstraint c v-> IO (m (Conflict v, [Solution v]))
-minimizeStepWise' solver constraint = evalStateT  . cardinalitySolving (\(l,u) c -> (l,c-1))
 
 minimizeOverVars :: forall s v c m. (Show v, MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit v]], VariableType [[Lit v]] ~ v, Monad m, Traversable m) => 
                     PBConstraint c v -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
