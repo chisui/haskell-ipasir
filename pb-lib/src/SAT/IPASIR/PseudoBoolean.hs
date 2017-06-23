@@ -47,7 +47,57 @@ instance (C.CardinalityMethod c, Ord v, Ipasir i) => Clauses (IpasirSolver i) (P
                     weightedLits = asLit <$> Map.toList (PB.vars c)
                     asLit (v, i) = varToInt cache (Right v) $-$ fromInteger i
 
-minimizeOverVars :: forall s v c m. (Show v, MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit v]], VariableType [[Lit v]] ~ v, Monad m, Traversable m) => PBConstraint c v -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
+
+cardinalitySolving :: forall s v c m. (Show v, MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit v]], VariableType [[Lit v]] ~ v, Monad m, Traversable m) => 
+                    ((Int, Int) -> Int -> (Int, Int)) -> PBConstraint c v -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
+cardinalitySolving borderFunction constraint = do
+    (clauses, encoder) <- lift $ runStateT (PB.newPBEncoder constraint) Nothing
+    addClauses clauses
+    sol <- mSolve
+    idToM $ mapM (minimizeOverVars' encoder (startLower,startUpper)) sol
+    where
+        weights = Map.elems $ PB.vars constraint
+        startLower = fromEnum $ sum $ filter (<0) weights
+        startUpper = fromEnum $ sum $ filter (>0) weights
+
+        idToM :: StateT (Identity (s v)) IO (m (Conflict v, [Solution v])) -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
+        idToM body = do
+            state <- get
+            r <- lift $ mapM (runStateT body . Identity) state
+            put $ (runIdentity . snd) <$> r
+            return $ fst =<< r
+
+        importantVars :: [v]
+        importantVars = Map.keys $ PB.vars constraint
+
+        minimizeOverVars' :: Maybe (Enc c v) -> (Int, Int) -> ESolution v -> StateT (Identity (s v)) IO (Conflict v, [Solution v])
+        minimizeOverVars' _ _ (Left conflict)   = return (conflict, [])
+        minimizeOverVars' encoder (lower, upper) (Right solution) = do
+            let count = length $ filter (fromMaybe False . (solution Map.!) . Right) importantVars
+            let (newLower, newUpper) = borderFunction (lower, upper) count
+
+            newClauses <- if newLower <= lower && newUpper >= upper 
+                then error $ "You have to decrease the border-size! Old Border: " ++ show (lower, upper) ++ ", new border: " ++ show (lower, upper)
+                else do
+                    lowerClauses <- if newUpper < upper
+                        then lift $ evalStateT (PB.pushUpperBound (newUpper)) encoder
+                        else return []
+                    upperClauses <- if newLower > lower
+                        then lift $ evalStateT (PB.pushLowerBound (newLower)) encoder
+                        else return []
+                    return $ lowerClauses ++ upperClauses
+
+            addClauses newClauses
+            (Identity sol) <- mSolve
+            (con, s') <- minimizeOverVars' encoder (newLower, newUpper) sol
+            return (con, s'++[solution])
+
+minimizeStepWise' :: forall s v c m. (Show v, MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit v]], VariableType [[Lit v]] ~ v, Monad m, Traversable m) => 
+                    m (s v) -> PBConstraint c v-> IO (m (Conflict v, [Solution v]))
+minimizeStepWise' solver constraint = evalStateT  . cardinalitySolving (\(l,u) c -> (l,c-1))
+
+minimizeOverVars :: forall s v c m. (Show v, MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit v]], VariableType [[Lit v]] ~ v, Monad m, Traversable m) => 
+                    PBConstraint c v -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
 minimizeOverVars constraint = do
     (clauses, encoder) <- lift $ runStateT (PB.newPBEncoder constraint) Nothing
     addClauses clauses
