@@ -1,8 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StandaloneDeriving, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -31,17 +30,6 @@ import SAT.IPASIR.Clauses
 import SAT.IPASIR.Solver (HasVariables(..))
 import SAT.IPASIR.VarCache
 
-{-
-data Formula v 
-  = Var v                     -- ^ A variable.
-  | Yes                       -- ^ The formula /true/.
-  | No                        -- ^ The formula /false/.
-  | Not  (Formula v)          -- ^ Negation.
-  | All  [Formula v]          -- ^ All are true.
-  | Some [Formula v]          -- ^ At least one is true.
-  | Odd  [Formula v]          -- ^ An odd number is /true/.
-  deriving (Show, Eq, Ord, Functor)  
--}
 
 type  Formula v = GeneralFormula Normal v
 type RFormula v = GeneralFormula Reduced v
@@ -52,44 +40,63 @@ data Reduced
 data Demorgened
 
 class Upper a where
-instance Upper (Normal) where
-instance Upper (Reduced) where
+instance Upper Normal where
+instance Upper Reduced where
 
 data GeneralFormula s v where 
     Var  :: Upper s => v -> GeneralFormula s v  -- ^ A variable.
-    LVar :: Lit v -> GeneralFormula Demorgened v  -- ^ A variable.
+    PVar :: v -> GeneralFormula Demorgened v  -- ^ A variable.
+    NVar :: v -> GeneralFormula Demorgened v  -- ^ A variable.
     Yes  :: GeneralFormula Normal v       -- ^ The formula /true/.
     No   :: GeneralFormula Normal v       -- ^ The formula /false/.
     Not  :: Upper s => GeneralFormula s v ->  GeneralFormula s v  -- ^ Negation.
     All  :: [GeneralFormula s v] ->  GeneralFormula s v           -- ^ All are true.
     Some :: [GeneralFormula s v] ->  GeneralFormula s v          -- ^ At least one is true.
     Odd  :: [GeneralFormula s v] ->  GeneralFormula s v          -- ^ An odd number is /true/.
-deriving instance Show v => Show (GeneralFormula s v)
-deriving instance Ord v  => Ord  (GeneralFormula s v)
-deriving instance Eq v   => Eq   (GeneralFormula s v)
-deriving instance Functor (GeneralFormula s)
+deriving instance Show v => Show        (GeneralFormula s v)
+deriving instance Ord v  => Ord         (GeneralFormula s v)
+deriving instance Eq v   => Eq          (GeneralFormula s v)
+deriving instance           Functor     (GeneralFormula s)
+deriving instance           Foldable    (GeneralFormula s)
+deriving instance           Traversable (GeneralFormula s)
+
+
+instance Applicative (GeneralFormula Normal) where
+    pure = return
+    (<*>) = ap
+instance Applicative (GeneralFormula Reduced) where
+    pure = return
+    (<*>) = ap
+instance Applicative (GeneralFormula Demorgened) where
+    pure = return
+    (<*>) = ap
+
+instance Monad (GeneralFormula Normal) where
+    return = Var
+    (Var v)   >>= f = f v
+    (Not v)   >>= f = notB $ v >>= f
+    (All  vs) >>= f = All $ map (>>= f) vs
+    (Some vs) >>= f = Some $ map (>>= f) vs
+    (Odd  vs) >>= f = Odd $ map (>>= f) vs
+    Yes       >>= _ = Yes
+    No        >>= _ = No
+instance Monad (GeneralFormula Reduced) where
+    return = Var
+    (Var v)   >>= f = f v
+    (Not v)   >>= f = notB $ v >>= f
+    (All  vs) >>= f = All $ map (>>= f) vs
+    (Some vs) >>= f = Some $ map (>>= f) vs
+    (Odd  vs) >>= f = Odd $ map (>>= f) vs
+instance Monad (GeneralFormula Demorgened) where
+    return = PVar
+    (PVar v)  >>= f = f v
+    (NVar v)  >>= f = notB $ f v
+    (All  vs) >>= f = All $ map (>>= f) vs
+    (Some vs) >>= f = Some $ map (>>= f) vs
+    (Odd  vs) >>= f = Odd $ map (>>= f) vs
 
 instance (IsString v) => IsString (Formula v) where
     fromString = Var . fromString
-
-instance Foldable (GeneralFormula s) where
-    foldMap g (Var  v)  = g v
-    foldMap g (Not  f)  = foldMap g f
-    foldMap g (All  fs) = deepFoldMap g fs
-    foldMap g (Some fs) = deepFoldMap g fs
-    foldMap g (Odd  fs) = deepFoldMap g fs
-    foldMap _ _         = mempty
-deepFoldMap g = fold . map (foldMap g)
-
-instance Traversable (GeneralFormula s) where
-    traverse g (Var  v)  = Var  <$> g v
-    traverse g (Not  f)  = Not  <$> traverse g f
-    traverse g (All  fs) = All  <$> deepTraverse g fs
-    traverse g (Some fs) = Some <$> deepTraverse g fs
-    traverse g (Odd  fs) = Odd  <$> deepTraverse g fs
-    traverse _ Yes       = pure Yes
-    traverse _ No        = pure No
-deepTraverse g = traverse (traverse g)
 
 instance (Ord v, FormulaOperation (GeneralFormula s)) => HasVariables (GeneralFormula s v) where
     type VariableType (GeneralFormula s v) = v
@@ -102,11 +109,25 @@ instance (Ord v, FormulaOperation (GeneralFormula s)) => HasVariables (GeneralFo
             (_,_,_,defs) = runTransComplete emptyCache $ transCnf $ demorgen c
             helper = map id $ lefts $ map fst defs
 
+unpackVar :: GeneralFormula s v -> Maybe v
+unpackVar (Var  v) = Just v
+unpackVar (PVar v) = Just v
+unpackVar (NVar v) = Just v
+unpackVar _        = Nothing
+
+isVar :: GeneralFormula s v -> Bool
+isVar = isJust . unpackVar
+
+asLVar :: Lit v -> DFormula v
+asLVar (Pos v) = PVar v
+asLVar (Neg v) = NVar v
+
+asLit :: DFormula v -> Lit v
+asLit (PVar v) = Pos v
+asLit (NVar v) = Neg v
+
 var :: v -> Formula v
 var = Var
-
-notB (Not x) = x
-notB f       = Not f
 
 (All l1) &&* (All l2) = All $ l1++l2
 (All l) &&* a = All $ a:l
@@ -136,6 +157,7 @@ class (Foldable fo, Traversable fo) => FormulaOperation (fo :: * -> *) where
     -- Removes all Yes and No from the Formulas
     rFormula :: Eq v => fo v -> RFormula v
     demorgen :: Eq v => fo v -> DFormula v
+    notB :: fo v -> fo v
 
 instance FormulaOperation (GeneralFormula Normal) where
     rFormula formula 
@@ -183,32 +205,41 @@ instance FormulaOperation (GeneralFormula Normal) where
                 where x' = rFormula' x
             rFormula' x = x
     demorgen = demorgen . rFormula
+    notB (Not x)  = x
+    notB f        = Not f
 
 instance FormulaOperation (GeneralFormula Reduced) where
     rFormula = id
     demorgen form = pdemorgen form
         where
             pdemorgen :: RFormula v -> DFormula v
-            pdemorgen (Var x)  = LVar $ Pos x
+            pdemorgen (Var x)  = PVar x
             pdemorgen (Not f)  = ndemorgen f
             pdemorgen (All f)  = All  $ map pdemorgen f
             pdemorgen (Some f) = Some $ map pdemorgen f
             pdemorgen (Odd f)  = Odd $ map pdemorgen f
             
             ndemorgen :: RFormula v -> DFormula v
-            ndemorgen (Var x)  = LVar $ Neg x
+            ndemorgen (Var x)  = NVar x
             ndemorgen (Not f)  = pdemorgen f
             ndemorgen (All f)  = Some $ map ndemorgen f
             ndemorgen (Some f) = All  $ map ndemorgen f
             ndemorgen (Odd (x:xs)) = Odd $ map pdemorgen $ notB x : xs
+    notB (Not x) = x
+    notB f       = Not f
 
 instance FormulaOperation (GeneralFormula Demorgened) where
-    rFormula (LVar (Pos x)) = Var x
-    rFormula (LVar (Neg x)) = Not $ Var x
-    rFormula (All l)        = All $ map rFormula l
-    rFormula (Some l)       = Some $ map rFormula l
-    rFormula (Odd l)        = Odd $ map rFormula l
-    demorgen = id 
+    rFormula (PVar x) = Var x
+    rFormula (NVar x) = Not $ Var x
+    rFormula (All l)  = All $ map rFormula l
+    rFormula (Some l) = Some $ map rFormula l
+    rFormula (Odd l)  = Odd $ map rFormula l
+    demorgen = id
+    notB (PVar x) = NVar x
+    notB (NVar x) = PVar x
+    notB (All  l) = Some $ map notB l
+    notB (Some l) = All $ map notB l
+    notB (Odd (x:xs)) = Odd $ notB x : xs
 
 type Trans v a = State (VarCache v, [Clause (Var v)], [(Var v, DFormula (Var v))]) a
 
@@ -268,14 +299,15 @@ normalformToFormula (or,xor)   = All $ orFormulas ++ xorFormulas
 
 
 partitionList :: (DFormula v -> (Bool,[DFormula v])) -> [DFormula v] -> ([Lit v], [DFormula v])
-partitionList f []          = ([],[])
-partitionList f (LVar x:xs) = (x:lits, rest) 
-    where
-        (lits, rest)        = partitionList f xs
+partitionList f [] = ([],[])
 partitionList f (x:xs)
-    | correctType           = (lits1++lits2, rest1++rest2) 
-    | otherwise             = (lits2, x:rest2) 
+    | isVar x  = (lit x:lits2, rest2)
+    | correctType  = (lits1++lits2, rest1++rest2) 
+    | otherwise    = (lits2, x:rest2) 
     where
+        lit :: DFormula v -> Lit v
+        lit (PVar v) = Pos v
+        lit (NVar v) = Neg v
         (correctType,list)  = f x
         (lits1, rest1)      = partitionList f list
         (lits2, rest2)      = partitionList f xs
@@ -307,8 +339,8 @@ lit2ELit (Pos x) = Pos $ Right x
 lit2ELit (Neg x) = Neg $ Right x
 
 transCnf :: Ord v => DFormula v -> Trans v [Clause (Var v)]
-transCnf (LVar (Pos v) ) = return [Or [Pos (Right v)]]
-transCnf (LVar (Neg v) ) = return [Or [Neg (Right v)]]
+transCnf (PVar v) = return [Or [Pos (Right v)]]
+transCnf (NVar v) = return [Or [Neg (Right v)]]
 
 transCnf (All l) = do
     a :: [[Clause (Var v)]] <- mapM transCnf l 
@@ -359,7 +391,7 @@ litOfAnd ds = do
     x :: Lit (Var v) <- freshLit
 
     -- Define x <-> c1 ∧ ... ∧ cn
-    addDefinition (extract x) (All $ map LVar ds) -- Just for printing
+    addDefinition (extract x) (All $ map asLVar ds) -- Just for printing
     
     addClauses [ Or [neg x, c] | c <- ds ]
     addClause $ Or $ x : [neg c | c <- ds]
@@ -370,7 +402,7 @@ litOfOr :: Ord v => [Lit (Var v)] -> Trans v (Lit (Var v))
 litOfOr [l] = return l
 litOfOr ds = do
     x <- freshLit
-    addDefinition (extract x) (Some $ map LVar ds) -- Just for printing
+    addDefinition (extract x) (Some $ map asLVar ds) -- Just for printing
     -- Define x <-> d1 ∨ ... ∨ dn
     addClauses [ Or [x, neg d] | d <- ds]
     addClause $ Or $ neg x : ds
@@ -386,7 +418,7 @@ litOfXor ds = do
     let defForPring = case ds of
             (Pos l)      -> map Pos l
             (Neg (x:xs)) -> Neg x : map Pos xs
-    addDefinition (extract z) (Odd $ map LVar defForPring) -- Just for printing
+    addDefinition (extract z) (Odd $ map asLVar defForPring) -- Just for printing
     
     -- Define z <-> x1 ⊕ ... ⊕ xn 
     addClause $ XOr $ neg $ ((extract z:) <$> ds)

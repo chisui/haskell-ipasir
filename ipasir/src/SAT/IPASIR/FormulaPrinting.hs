@@ -41,8 +41,6 @@ data TransformationStep = TSNormal | TSReduced | TSDemorgen | TSHelperDefs | TSH
     -- Yes and No are also Terminals.
 isTerminal  :: GeneralFormula s v -> Bool
 isTerminal x = not (isNegation x) && not (isList x)
-isVar       :: GeneralFormula s v -> Bool
-isVar       = isJust . unpackVar
 foldFormula :: ( a -> GeneralFormula s v -> a) -> a -> GeneralFormula s v ->  a
 foldFormula f starter form = foldl (foldFormula f) next $ getInnerFormulas form
     where
@@ -65,11 +63,8 @@ showElem (Some l)  = "SOME "
 showElem (Odd l)   = "ODD  "
 showElem (Not f)   = "-"
 showElem (Var x)   = show x
-showElem (LVar (Pos x)) = '+' : show x
-showElem (LVar (Neg x)) = '-' : show x
-unpackVar (Var x)  = Just x
-unpackVar (LVar x) = Just $ extract x
-unpackVar _        = Nothing
+showElem (PVar x)  = '+' : show x
+showElem (NVar x)  = '-' : show x
 
 getVars :: GeneralFormula s v -> [v]
 getVars = foldFormula f []
@@ -226,7 +221,7 @@ printDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
                 (or,xor)            = partitionClauses True xcnf :: ([[Lit (Var v)]],[Lit [Var v]])
                 (hName,(_,xcnf,_))  = runState (innerForm formula) (newCache,[],[])
                 hName'              = extract hName
-                unpacked            = map (\(LVar v) -> v) $ getInnerFormulas formula
+                unpacked            = map asLit $ getInnerFormulas formula
                 innerForm :: (Show v, Eq v) => DFormula (Var v) -> Trans v (Lit (Var v))
                 innerForm (All l)  = litOfAnd unpacked
                 innerForm (Some l) = litOfOr  unpacked
