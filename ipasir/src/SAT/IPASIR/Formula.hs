@@ -107,13 +107,10 @@ unpackVar _        = Nothing
 isVar :: GeneralFormula s v -> Bool
 isVar = isJust . unpackVar
 
-unpackTerminal :: GeneralFormula s v -> Maybe Bool
-unpackTerminal Yes = Just True
-unpackTerminal No  = Just False
-unpackTerminal _   = Nothing
-
 isTerminal :: GeneralFormula s v -> Bool
-isTerminal = isJust . unpackTerminal
+isTerminal Yes = True
+isTerminal No  = True
+isTerminal f   = isVar f
 
 asLVar :: Lit v -> DFormula v
 asLVar (Pos v) = PVar v

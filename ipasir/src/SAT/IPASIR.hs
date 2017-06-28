@@ -28,6 +28,11 @@ import SAT.IPASIR.Formula as Export
     , normalformToCNF
     , formulaToCNF
     , normalformToFormula
+    , unpackVar
+    , isVar
+    , isTerminal
+    , asLVar
+    , asLit
     )
 import SAT.IPASIR.FormulaPrinting as Export hiding (getVars)
 import SAT.IPASIR.IpasirSolver as Export
