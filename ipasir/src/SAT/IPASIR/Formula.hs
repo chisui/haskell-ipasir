@@ -33,11 +33,11 @@ import SAT.IPASIR.VarCache
 
 type  Formula v = GeneralFormula Normal v
 type RFormula v = GeneralFormula Reduced v
-type DFormula v = GeneralFormula Demorgened v
+type DFormula v = GeneralFormula Demorganed v
 
 data Normal
 data Reduced
-data Demorgened
+data Demorganed
 
 class Upper a where
 instance Upper Normal where
@@ -47,9 +47,9 @@ data GeneralFormula s v where
     -- | A variable.
     Var  :: Upper s => v -> GeneralFormula s v
     -- | A Positive variable.
-    PVar :: v -> GeneralFormula Demorgened v
+    PVar :: v -> GeneralFormula Demorganed v
     -- | A Negative variable.
-    NVar :: v -> GeneralFormula Demorgened v
+    NVar :: v -> GeneralFormula Demorganed v
     -- | The formula @True@.
     Yes  :: GeneralFormula Normal v
     -- | The formula @False@.
@@ -96,7 +96,7 @@ instance (Ord v, FormulaOperation s) => HasVariables (GeneralFormula s v) where
     getLabels            = Set.fromList . toList
     getHelpers      f _  = Set.fromList $ lefts $ map fst defs
         where
-            (_,_,_,defs) = runTransComplete emptyCache $ transCnf $ demorgen f
+            (_,_,_,defs) = runTransComplete emptyCache $ transCnf $ demorgan f
 
 unpackVar :: GeneralFormula s v -> Maybe v
 unpackVar (Var  v) = Just v
@@ -163,7 +163,7 @@ class (Foldable (GeneralFormula s), Traversable (GeneralFormula s)) => FormulaOp
     -- | Removes all occurances of @Yes@ and @No@ from the Formulas.
     rFormula :: Eq v => GeneralFormula s v -> RFormula v
     -- | Push all occurances of @Not@ down to the variables.
-    demorgen :: Eq v => GeneralFormula s v -> DFormula v
+    demorgan :: Eq v => GeneralFormula s v -> DFormula v
     -- | Negate a formula.
     notB :: GeneralFormula s v -> GeneralFormula s v
 
@@ -213,36 +213,36 @@ instance FormulaOperation Normal where
                 | otherwise = Not x'
                 where x' = rFormula' x
             rFormula' x = x
-    demorgen = demorgen . rFormula
+    demorgan = demorgan . rFormula
     notB (Not x) = x
     notB f       = Not f
 
 instance FormulaOperation Reduced where
     makeVar = Var
     rFormula = id
-    demorgen = demorgen' True
+    demorgan = demorgan' True
         where
-            demorgen' :: Bool -> RFormula v -> DFormula v
-            demorgen' b (Var x) = if b 
+            demorgan' :: Bool -> RFormula v -> DFormula v
+            demorgan' b (Var x) = if b 
                 then PVar x
                 else NVar x
-            demorgen' b (Not f) = demorgen' (not b) f
-            demorgen' b (Odd (x:xs)) = Odd $ demorgen' b x : map (demorgen' True) xs
-            demorgen' b (All  f) = flipped      b  f
-            demorgen' b (Some f) = flipped (not b) f
-            flipped True  = All  . map (demorgen' True )
-            flipped False = Some . map (demorgen' False)
+            demorgan' b (Not f) = demorgan' (not b) f
+            demorgan' b (Odd (x:xs)) = Odd $ demorgan' b x : map (demorgan' True) xs
+            demorgan' b (All  f) = flipped      b  f
+            demorgan' b (Some f) = flipped (not b) f
+            flipped True  = All  . map (demorgan' True )
+            flipped False = Some . map (demorgan' False)
     notB (Not x) = x
     notB f       = Not f
 
-instance FormulaOperation Demorgened where
+instance FormulaOperation Demorganed where
     makeVar = PVar
     rFormula (PVar x) = Var x
     rFormula (NVar x) = Not $ Var x
     rFormula (All  l) = All  $ map rFormula l
     rFormula (Some l) = Some $ map rFormula l
     rFormula (Odd  l) = Odd  $ map rFormula l
-    demorgen = id
+    demorgan = id
     notB (PVar x) = NVar x
     notB (NVar x) = PVar x
     notB (All  l) = Some $ map notB l
@@ -282,7 +282,7 @@ runTransComplete cache trans = (mainCNF, newCache, cnfs, defs)
 -- -----------------------------------------------------------------------------
 
 formulaToNormalform :: (Ord v, FormulaOperation s) => VarCache v -> GeneralFormula s v -> (VarCache v, NormalForm (Var v))
-formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgen form
+formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgan form
     where
         cache' = snd $ newVars cache $ Set.toList $ getLabels form
 

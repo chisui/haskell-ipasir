@@ -36,7 +36,7 @@ tester10 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All 
 tester11 = Some [Odd [Some [Var 3, Var 4], Var 2],  Var 1] :: Formula Int
 tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Var 2]] :: Formula Int
 
-data TransformationStep = TSNormal | TSReduced | TSDemorgen | TSHelperDefs | TSHelperForm | TSXCNF | TSCNF
+data TransformationStep = TSNormal | TSReduced | TSDemorgan | TSHelperDefs | TSHelperForm | TSXCNF | TSCNF
 
 foldFormula :: ( a -> GeneralFormula s v -> a) -> a -> GeneralFormula s v ->  a
 foldFormula f starter form = foldl (foldFormula f) next $ getInnerFormulas form
@@ -111,7 +111,7 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
                 | n <- [0..maxLength cnf'], let (count, hornCount) = statsClauses n cnf' ]
 
         reduced'      = rFormula formula
-        demorgen'     = demorgen reduced'
+        demorgan'     = demorgan reduced'
         (cache,xcnf') = formulaToNormalform emptyCache formula
         cnf'          = normalformToCNF xcnf'
 
@@ -173,7 +173,7 @@ showFormulaTransformation = showFormulaTransformation' (\i->"Helper"++show i)
 showFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> String
 showFormulaTransformation' showE TSNormal     formula = showFormula formula
 showFormulaTransformation' showE TSReduced    formula = showFormula $ rFormula formula
-showFormulaTransformation' showE TSDemorgen   formula = showFormula $ demorgen $ rFormula formula
+showFormulaTransformation' showE TSDemorgan   formula = showFormula $ demorgan $ rFormula formula
 showFormulaTransformation' showE TSXCNF       formula = showFormulaEither showE $ normalformToFormula $ snd $ formulaToNormalform emptyCache formula
 showFormulaTransformation' showE TSCNF        formula = showFormulaEither showE $ normalformToFormula $ (snd $ formulaToCNF emptyCache formula,[])
 showFormulaTransformation' showE TSHelperForm formula = printDefs' True  showE formula
@@ -185,7 +185,7 @@ printDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
         (main, newCache, cnfs, defs) = runTransComplete cache trans
         def'          = reverse defs :: [(Var v, DFormula (Var v))]
         cache         = emptyCache
-        trans         = transCnf $ demorgen $ rFormula formula
+        trans         = transCnf $ demorgan $ rFormula formula
         helperStrings :: [String]
         helperStrings = zipWith (\(name,formula) str -> makeLine name formula str) def' helperFormulas
             where
