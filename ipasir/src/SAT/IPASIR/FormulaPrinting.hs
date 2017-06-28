@@ -72,6 +72,9 @@ getVars = foldFormula f []
 
 tab = "    "
 
+printFormulaStatistics :: (Ord v) => Formula v -> IO ()
+printFormulaStatistics = putStrLn . showFormulaStatistics
+
 showFormulaStatistics :: (Ord v) => Formula v -> String
 showFormulaStatistics formula = "Incoming Formula:\n"                      ++ toText part1 ++ 
                                 "\nAfter Reduction:\n"                     ++ toText part2 ++ 
@@ -167,8 +170,14 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         isHorn :: [Lit v] -> Bool
         isHorn = (<=1) . length . filter sign
 
+printFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> IO () 
+printFormulaTransformation s v = putStrLn $ showFormulaTransformation s v
+
 showFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> String
 showFormulaTransformation = showFormulaTransformation' (\i->"Helper"++show i)
+
+printFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> IO () 
+printFormulaTransformation' f s v = putStrLn $ showFormulaTransformation' f s v
 
 showFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> String
 showFormulaTransformation' showE TSNormal     formula = showFormula formula
@@ -176,11 +185,11 @@ showFormulaTransformation' showE TSReduced    formula = showFormula $ rFormula f
 showFormulaTransformation' showE TSDemorgan   formula = showFormula $ demorgan $ rFormula formula
 showFormulaTransformation' showE TSXCNF       formula = showFormulaEither showE $ normalformToFormula $ snd $ formulaToNormalform emptyCache formula
 showFormulaTransformation' showE TSCNF        formula = showFormulaEither showE $ normalformToFormula $ (snd $ formulaToCNF emptyCache formula,[])
-showFormulaTransformation' showE TSHelperForm formula = printDefs' True  showE formula
-showFormulaTransformation' showE TSHelperDefs formula = printDefs' False showE formula
+showFormulaTransformation' showE TSHelperForm formula = showDefs' True  showE formula
+showFormulaTransformation' showE TSHelperDefs formula = showDefs' False showE formula
 
-printDefs' :: forall v. (Show v,Ord v) => Bool -> (Word -> String) -> Formula v -> String
-printDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
+showDefs' :: forall v. (Show v,Ord v) => Bool -> (Word -> String) -> Formula v -> String
+showDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
     where
         (main, newCache, cnfs, defs) = runTransComplete cache trans
         def'          = reverse defs :: [(Var v, DFormula (Var v))]
@@ -228,14 +237,25 @@ printDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
                 
 
 
+printFormula :: (Show v) => GeneralFormula s v -> IO ()
+printFormula = putStrLn . showFormula
+
 showFormula :: (Show v) => GeneralFormula s v -> String
 showFormula = showFormula' tab showElem
+
+
+printFormulaEither :: Show v => (Word -> String) -> GeneralFormula s (Var v) ->  IO ()
+printFormulaEither g f = putStrLn $ showFormulaEither g f
 
 showFormulaEither :: Show v => (Word -> String) -> GeneralFormula s (Var v) -> String
 showFormulaEither showHelper = showFormula' tab shower
     where
     --    show :: Formula (ELit v) -> String
         shower x = maybe (showElem x) (either showHelper show) (unpackVar x)
+
+
+printFormula' :: forall fo v s. String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> IO ()
+printFormula' s g f = putStrLn $ showFormula' s g f
 
 showFormula' :: forall fo v s. String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> String
 showFormula' tab showFunction f
@@ -255,4 +275,3 @@ showFormula' tab showFunction f
                         | isTerminal f        = True
                         | isNegation f        = isLit $ head $ getInnerFormulas f
                         | otherwise           = False
-
