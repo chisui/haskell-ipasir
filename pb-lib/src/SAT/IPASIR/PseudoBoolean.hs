@@ -5,6 +5,7 @@
 module SAT.IPASIR.PseudoBoolean
     ( module PB
     , minimizeOverVars
+    , cardinalitySolving
     ) where
 
 import Control.Comonad
