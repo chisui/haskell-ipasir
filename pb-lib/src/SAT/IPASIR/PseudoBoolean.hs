@@ -52,8 +52,8 @@ instance (C.CardinalityMethod c, Ord v, Ipasir i) => Clauses (IpasirSolver i) (P
 
 
 cardinalitySolving :: forall s v c m. (Show v, MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit v]], VariableType [[Lit v]] ~ v, Monad m, Traversable m) => 
-                    ((Int, Int) -> Int -> (Int, Int)) -> PBConstraint c v -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
-cardinalitySolving borderFunction constraint = do
+                    (Solution v -> IO ()) -> ((Int, Int) -> Int -> (Int, Int)) -> PBConstraint c v -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
+cardinalitySolving handleSolution borderFunction constraint = do
     (clauses, encoder) <- lift $ runStateT (PB.newPBEncoder constraint) Nothing
     addClauses clauses
     sol <- mSolve
@@ -76,6 +76,7 @@ cardinalitySolving borderFunction constraint = do
         minimizeOverVars' :: Maybe (Enc c v) -> (Int, Int) -> ESolution v -> StateT (Identity (s v)) IO (Conflict v, [Solution v])
         minimizeOverVars' _ _ (Left conflict)   = return (conflict, [])
         minimizeOverVars' encoder (lower, upper) (Right solution) = do
+            lift $ handleSolution solution
             let count = length $ filter (fromMaybe False . (solution Map.!) . Right) importantVars
             let (newLower, newUpper) = borderFunction (lower, upper) count
 
