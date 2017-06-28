@@ -24,7 +24,6 @@ import qualified SAT.PseudoBoolean.C as C
 import SAT.PseudoBoolean.Config as Export
 import SAT.PseudoBoolean.C.Types.WeightedLit as Export
 
-
 type Encoder a = StateT (ForeignPtr C.C_Encoder) IO a
 
 evalEncoder :: C.CardinalityMethod a => Config a -> [C.WeightedLit] -> C.Comp -> Int64 -> Int64 -> Int -> Encoder b -> IO b

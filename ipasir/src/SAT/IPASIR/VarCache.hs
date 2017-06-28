@@ -131,7 +131,7 @@ showIntToVar :: Show v => VarCache v -> String
 showIntToVar lcache = intercalate "\n" (seperator:lines) ++ '\n':seperator
     where
         lastIndex    = numVars lcache
-        indices      = [0..lastIndex-1]
+        indices      = [1..lastIndex]
         lengthStrInd = length $ show lastIndex
         strIndices   = map resizeIndex indices
         resizeIndex i= replicate (lengthStrInd - length (show i)) ' ' ++ show i
@@ -147,7 +147,7 @@ showVarToInt :: (Ord v, Show v) => VarCache v -> String
 showVarToInt lcache  = seperator ++ '\n' : text ++ '\n' : seperator
     where
         lastIndex    = numVars lcache
-        tupels       = [ (i,intToVar lcache i) | i <- [0..lastIndex-1]]
+        tupels       = [ (i,intToVar lcache i) | i <- [1..lastIndex]]
         (index,var)  = unzip $ sortBy (\a b -> compare (snd a) (snd b)) tupels
         strIndex     = sameSizer False index
         strVars      = sameSizer True var

@@ -119,6 +119,9 @@ class (MSolver s) => Solver s where
     solveAll :: (Clauses s c, VariableType c ~ v) => Proxy (s v) -> c -> [Solution v]
     solveAll m c = solveAllForVars m c $ Set.toList $ getVariables c emptyCache
 
+    solveAll_ :: (Clauses s c, VariableType c ~ v) => Proxy (s v) -> c -> [Map.Map v Bool]
+    solveAll_ m c = map withoutHelpers $ expandSolution =<< solveAll m c
+
 expandSolution :: (Traversable t, Applicative f, Monoid (f Bool), Monoid (f (Maybe Bool))) => t (Maybe Bool) -> f (t Bool)
 {-# SPECIALIZE expandSolution :: Solution v -> [Map.Map (Var v) Bool] #-}
 {-# SPECIALIZE expandSolution :: Solution v -> First (Map.Map (Var v) Bool) #-}

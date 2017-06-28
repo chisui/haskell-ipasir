@@ -21,6 +21,8 @@ import SAT.PseudoBoolean
 import qualified SAT.PseudoBoolean.C as C
 import SAT.IPASIR.PseudoBoolean.State as PB
 
+import Debug.Trace
+
 
 instance (C.CardinalityMethod c, Ord v) => HasVariables (PBConstraint c v) where
     type VariableType (PBConstraint c v) = v
@@ -115,6 +117,7 @@ minimizeOverVars constraint = do
         minimizeOverVars' encoder (Right solution) = do
             let count = length $ filter (fromMaybe False . (solution Map.!) . Right) importantVars
             newClauses :: [[Lit v]] <- lift $ evalStateT (PB.pushUpperBound (count-1)) encoder
+            traceM $ show count
             addClauses newClauses
             (Identity sol) <- mSolve
             (con, s') <- minimizeOverVars' encoder sol
