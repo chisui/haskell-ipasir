@@ -38,9 +38,6 @@ tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Va
 
 data TransformationStep = TSNormal | TSReduced | TSDemorgen | TSHelperDefs | TSHelperForm | TSXCNF | TSCNF
 
-    -- Yes and No are also Terminals.
-isTerminal  :: GeneralFormula s v -> Bool
-isTerminal x = not (isNegation x) && not (isList x)
 foldFormula :: ( a -> GeneralFormula s v -> a) -> a -> GeneralFormula s v ->  a
 foldFormula f starter form = foldl (foldFormula f) next $ getInnerFormulas form
     where

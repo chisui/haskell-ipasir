@@ -44,15 +44,24 @@ instance Upper Normal where
 instance Upper Reduced where
 
 data GeneralFormula s v where 
-    Var  :: Upper s => v -> GeneralFormula s v  -- ^ A variable.
-    PVar :: v -> GeneralFormula Demorgened v  -- ^ A variable.
-    NVar :: v -> GeneralFormula Demorgened v  -- ^ A variable.
-    Yes  :: GeneralFormula Normal v       -- ^ The formula /true/.
-    No   :: GeneralFormula Normal v       -- ^ The formula /false/.
-    Not  :: Upper s => GeneralFormula s v ->  GeneralFormula s v  -- ^ Negation.
-    All  :: [GeneralFormula s v] ->  GeneralFormula s v           -- ^ All are true.
-    Some :: [GeneralFormula s v] ->  GeneralFormula s v          -- ^ At least one is true.
-    Odd  :: [GeneralFormula s v] ->  GeneralFormula s v          -- ^ An odd number is /true/.
+    -- | A variable.
+    Var  :: Upper s => v -> GeneralFormula s v
+    -- | A Positive variable.
+    PVar :: v -> GeneralFormula Demorgened v
+    -- | A Negative variable.
+    NVar :: v -> GeneralFormula Demorgened v
+    -- | The formula @True@.
+    Yes  :: GeneralFormula Normal v
+    -- | The formula @False@.
+    No   :: GeneralFormula Normal v
+    -- | Negation.
+    Not  :: Upper s => GeneralFormula s v -> GeneralFormula s v
+    -- | All are @True@.
+    All  :: [GeneralFormula s v] -> GeneralFormula s v
+    -- | At least one is @True@.
+    Some :: [GeneralFormula s v] -> GeneralFormula s v
+    -- | An odd number is @True@.
+    Odd  :: [GeneralFormula s v] -> GeneralFormula s v
 deriving instance Show v => Show        (GeneralFormula s v)
 deriving instance Ord v  => Ord         (GeneralFormula s v)
 deriving instance Eq v   => Eq          (GeneralFormula s v)
@@ -60,54 +69,34 @@ deriving instance           Functor     (GeneralFormula s)
 deriving instance           Foldable    (GeneralFormula s)
 deriving instance           Traversable (GeneralFormula s)
 
+instance FormulaOperation s => Applicative (GeneralFormula s) where
+    pure  = return
+    (<*>) = ap
+instance FormulaOperation s => Monad (GeneralFormula s) where
+    return = makeVar
+    (>>=) (Var  v)  f = f v
+    (>>=) (PVar v)  f = f v
+    (>>=) (NVar v)  f = notB $ f v
+    (>>=) (Not  v)  f = notB $ v >>= f
+    (>>=) (All  vs) f = All  $ map (>>= f) vs
+    (>>=) (Some vs) f = Some $ map (>>= f) vs
+    (>>=) (Odd  vs) f = Odd  $ map (>>= f) vs
+    (>>=) Yes       _ = Yes
+    (>>=) No        _ = No
 
-instance Applicative (GeneralFormula Normal) where
-    pure = return
-    (<*>) = ap
-instance Applicative (GeneralFormula Reduced) where
-    pure = return
-    (<*>) = ap
-instance Applicative (GeneralFormula Demorgened) where
-    pure = return
-    (<*>) = ap
-
-instance Monad (GeneralFormula Normal) where
-    return = Var
-    (Var v)   >>= f = f v
-    (Not v)   >>= f = notB $ v >>= f
-    (All  vs) >>= f = All $ map (>>= f) vs
-    (Some vs) >>= f = Some $ map (>>= f) vs
-    (Odd  vs) >>= f = Odd $ map (>>= f) vs
-    Yes       >>= _ = Yes
-    No        >>= _ = No
-instance Monad (GeneralFormula Reduced) where
-    return = Var
-    (Var v)   >>= f = f v
-    (Not v)   >>= f = notB $ v >>= f
-    (All  vs) >>= f = All $ map (>>= f) vs
-    (Some vs) >>= f = Some $ map (>>= f) vs
-    (Odd  vs) >>= f = Odd $ map (>>= f) vs
-instance Monad (GeneralFormula Demorgened) where
-    return = PVar
-    (PVar v)  >>= f = f v
-    (NVar v)  >>= f = notB $ f v
-    (All  vs) >>= f = All $ map (>>= f) vs
-    (Some vs) >>= f = Some $ map (>>= f) vs
-    (Odd  vs) >>= f = Odd $ map (>>= f) vs
+--fBind :: FormulaOperation s => GeneralFormula s a -> (a ->  GeneralFormula s b) -> GeneralFormula s b
 
 instance (IsString v) => IsString (Formula v) where
-    fromString = Var . fromString
+    fromString = return . fromString
 
-instance (Ord v, FormulaOperation (GeneralFormula s)) => HasVariables (GeneralFormula s v) where
+instance (Ord v, FormulaOperation s) => HasVariables (GeneralFormula s v) where
     type VariableType (GeneralFormula s v) = v
     getAllVariables f vc = map extract $ concat $ snd $ formulaToCNF vc f
-
-    getVariables c vc = Set.map Left (getHelpers c vc) `Set.union` Set.map Right (getLabels c)
-    getLabels         = Set.fromList . toList
-    getHelpers c vc   = Set.fromList helper
+    getVariables    f vc = Set.map Left (getHelpers f vc) `Set.union` Set.map Right (getLabels f)
+    getLabels            = Set.fromList . toList
+    getHelpers      f _  = Set.fromList $ lefts $ map fst defs
         where
-            (_,_,_,defs) = runTransComplete emptyCache $ transCnf $ demorgen c
-            helper = map id $ lefts $ map fst defs
+            (_,_,_,defs) = runTransComplete emptyCache $ transCnf $ demorgen f
 
 unpackVar :: GeneralFormula s v -> Maybe v
 unpackVar (Var  v) = Just v
@@ -118,6 +107,14 @@ unpackVar _        = Nothing
 isVar :: GeneralFormula s v -> Bool
 isVar = isJust . unpackVar
 
+unpackTerminal :: GeneralFormula s v -> Maybe Bool
+unpackTerminal Yes = Just True
+unpackTerminal No  = Just False
+unpackTerminal _   = Nothing
+
+isTerminal :: GeneralFormula s v -> Bool
+isTerminal = isJust . unpackTerminal
+
 asLVar :: Lit v -> DFormula v
 asLVar (Pos v) = PVar v
 asLVar (Neg v) = NVar v
@@ -127,25 +124,35 @@ asLit (PVar v) = Pos v
 asLit (NVar v) = Neg v
 
 var :: v -> Formula v
-var = Var
+var = return
 
-(All l1) &&* (All l2) = All $ l1++l2
-(All l) &&* a = All $ a:l
-a &&* (All l) = All $ a:l
-a &&* b       = All [a,b]
+(&&*) :: GeneralFormula s v -> GeneralFormula s v -> GeneralFormula s v
+Yes &&* Yes = Yes
+No  &&* _   = No
+_   &&* No  = No
+l   &&* r   = All $ list l ++ list r
+    where
+        list (All x) = x
+        list Yes     = []
+        list x       = [x]
 
-(Some l1) ||* (Some l2) = Some $ l1++l2
-(Some l) ||* a = Some $ a:l
-a ||* (Some l) = Some $ a:l
-a ||* b        = Some [a,b]
+(||*) :: GeneralFormula s v -> GeneralFormula s v -> GeneralFormula s v
+Yes ||* _   = Yes
+_   ||* Yes = Yes
+l   ||* r   = Some $ list l ++ list r
+    where
+        list (Some x) = x
+        list No       = []
+        list x        = [x]
 
-(Odd l1) ++* (Odd l2) = Odd $ l1++l2
-(Odd l) ++* a  = Odd $ a:l
-a ++* (Odd l)  = Odd $ a:l
-a ++* b        = Odd [a,b]
+(++*) :: GeneralFormula s v -> GeneralFormula s v -> GeneralFormula s v
+l ++* r = Odd $ list l ++ list r
+    where
+        list (Odd x) =  x
+        list x       = [x]
 
-a ->*  b       = notB a ||* b
-a <->* b       = notB $ a ++* b
+a  ->* b = notB a   ||* b
+a <->* b = notB $ a ++* b
 
 infixl 1 &&*
 infixl 2 ||*
@@ -153,13 +160,18 @@ infixl 3 ++*
 infixl 4 ->*
 infixl 5 <->*
 
-class (Foldable fo, Traversable fo) => FormulaOperation (fo :: * -> *) where
-    -- Removes all Yes and No from the Formulas
-    rFormula :: Eq v => fo v -> RFormula v
-    demorgen :: Eq v => fo v -> DFormula v
-    notB :: fo v -> fo v
+class (Foldable (GeneralFormula s), Traversable (GeneralFormula s)) => FormulaOperation s where
+    -- | create a var
+    makeVar :: v -> GeneralFormula s v
+    -- | Removes all occurances of @Yes@ and @No@ from the Formulas.
+    rFormula :: Eq v => GeneralFormula s v -> RFormula v
+    -- | Push all occurances of @Not@ down to the variables.
+    demorgen :: Eq v => GeneralFormula s v -> DFormula v
+    -- | Negate a formula.
+    notB :: GeneralFormula s v -> GeneralFormula s v
 
-instance FormulaOperation (GeneralFormula Normal) where
+instance FormulaOperation Normal where
+    makeVar = Var
     rFormula formula 
         | Yes == reduced = All []
         | No  == reduced = Some []
@@ -205,40 +217,39 @@ instance FormulaOperation (GeneralFormula Normal) where
                 where x' = rFormula' x
             rFormula' x = x
     demorgen = demorgen . rFormula
-    notB (Not x)  = x
-    notB f        = Not f
-
-instance FormulaOperation (GeneralFormula Reduced) where
-    rFormula = id
-    demorgen form = pdemorgen form
-        where
-            pdemorgen :: RFormula v -> DFormula v
-            pdemorgen (Var x)  = PVar x
-            pdemorgen (Not f)  = ndemorgen f
-            pdemorgen (All f)  = All  $ map pdemorgen f
-            pdemorgen (Some f) = Some $ map pdemorgen f
-            pdemorgen (Odd f)  = Odd $ map pdemorgen f
-            
-            ndemorgen :: RFormula v -> DFormula v
-            ndemorgen (Var x)  = NVar x
-            ndemorgen (Not f)  = pdemorgen f
-            ndemorgen (All f)  = Some $ map ndemorgen f
-            ndemorgen (Some f) = All  $ map ndemorgen f
-            ndemorgen (Odd (x:xs)) = Odd $ map pdemorgen $ notB x : xs
     notB (Not x) = x
     notB f       = Not f
 
-instance FormulaOperation (GeneralFormula Demorgened) where
+instance FormulaOperation Reduced where
+    makeVar = Var
+    rFormula = id
+    demorgen = demorgen' True
+        where
+            demorgen' :: Bool -> RFormula v -> DFormula v
+            demorgen' b (Var x) = if b 
+                then PVar x
+                else NVar x
+            demorgen' b (Not f) = demorgen' (not b) f
+            demorgen' b (Odd (x:xs)) = Odd $ demorgen' b x : map (demorgen' True) xs
+            demorgen' b (All  f) = flipped      b  f
+            demorgen' b (Some f) = flipped (not b) f
+            flipped True  = All  . map (demorgen' True )
+            flipped False = Some . map (demorgen' False)
+    notB (Not x) = x
+    notB f       = Not f
+
+instance FormulaOperation Demorgened where
+    makeVar = PVar
     rFormula (PVar x) = Var x
     rFormula (NVar x) = Not $ Var x
-    rFormula (All l)  = All $ map rFormula l
+    rFormula (All  l) = All  $ map rFormula l
     rFormula (Some l) = Some $ map rFormula l
-    rFormula (Odd l)  = Odd $ map rFormula l
+    rFormula (Odd  l) = Odd  $ map rFormula l
     demorgen = id
     notB (PVar x) = NVar x
     notB (NVar x) = PVar x
     notB (All  l) = Some $ map notB l
-    notB (Some l) = All $ map notB l
+    notB (Some l) = All  $ map notB l
     notB (Odd (x:xs)) = Odd $ notB x : xs
 
 type Trans v a = State (VarCache v, [Clause (Var v)], [(Var v, DFormula (Var v))]) a
@@ -273,7 +284,7 @@ runTransComplete cache trans = (mainCNF, newCache, cnfs, defs)
         
 -- -----------------------------------------------------------------------------
 
-formulaToNormalform :: (Ord v, FormulaOperation (GeneralFormula s)) => VarCache v -> GeneralFormula s v -> (VarCache v, NormalForm (Var v))
+formulaToNormalform :: (Ord v, FormulaOperation s) => VarCache v -> GeneralFormula s v -> (VarCache v, NormalForm (Var v))
 formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgen form
     where
         cache' = snd $ newVars cache $ Set.toList $ getLabels form
@@ -281,7 +292,7 @@ formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgen form
 normalformToCNF :: Eq v => NormalForm (Var v) -> CNF (Var v)
 normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)
 
-formulaToCNF :: (Ord v, FormulaOperation (GeneralFormula s)) => VarCache v -> GeneralFormula s v -> (VarCache v , CNF (Var v))
+formulaToCNF :: (Ord v, FormulaOperation s) => VarCache v -> GeneralFormula s v -> (VarCache v , CNF (Var v))
 formulaToCNF cache formula = second normalformToCNF $ formulaToNormalform cache formula
 
 normalformToFormula :: forall v. NormalForm (Var v) -> Formula (Var v)
