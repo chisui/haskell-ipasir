@@ -6,12 +6,13 @@ module Spec.SAT.IPASIR where
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
-import Data.Monoid
+import Data.Monoid hiding (All)
 import Data.Proxy
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
 
 import SAT.IPASIR
+import SAT.IPASIR.Cryptominisat
 
 
 mySolver = Proxy :: Proxy (MySolver v)
@@ -29,8 +30,15 @@ instance MSolver MySolver where
 instance (Ord l) => Clauses MySolver [[Lit l]] where
     addClauses _ = return ()
 
+{-
 main :: IO ()
 main = runSolver mySolver $ do
     addClauses [[Pos "a"]]
     _ <- mSolve
     lift $ putStrLn "\nBasic API works"
+-}
+
+s1 = "asdf"
+s2 = "asdfghijz''"
+main = solve cryptoMiniSat $ All [Some $ map var s1, Odd $ map var s2]
+

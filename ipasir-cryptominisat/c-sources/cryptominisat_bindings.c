@@ -14,16 +14,20 @@ void crypto_add_xor_clause(void* rawSolver, void* vars, size_t num_vars, bool rh
     int i;
     for (i=0; i<num_vars; i++) {
         int lit = vec[i];
-        // printf("%d ", lit);
+//        printf("%d ", lit);
         maxLit = max(maxLit, lit);
     }
-    // printf("] max=%d\n", maxLit);
     int currMax = cmsat_nvars(satSolver);
-    if (maxLit > currMax) {
+//    printf("] max=%d,    where currMax=%d\n", maxLit,currMax);
+
+    if (maxLit >= currMax) { // >= to remove out of 1 error. The Vector vars starts at 0 (so maxLit is increased by 1)
         int newVars = 1 + (maxLit - currMax);
-        // printf("add %d\n", newVars);
+
+    //    printf("add %d,   Max before: %d,    " , newVars, currMax);
         cmsat_new_vars(satSolver, newVars);
+    //    printf("Max after: %d\n" , cmsat_nvars(satSolver));
     }
-    
+
     cmsat_add_xor_clause(satSolver, vars, num_vars, rhs);
 }
+

@@ -76,6 +76,32 @@ instance Ipasir i => MSolver (IpasirSolver i) where
                     sign' True = -1
                     sign' False = 1
 
+mSolveAllForVars' :: forall v m i. (Ord v, Traversable m, Ipasir i) => [Var v] -> StateT (m (IpasirSolver i v)) IO (m (Conflict v, [Solution v]))
+mSolveAllForVars' ls = do
+    solvers <- get
+    lift $ mapM solve solvers
+    where
+        solve :: (Ord v, Ipasir i) => IpasirSolver i v -> IO (Conflict v, [Solution v])
+        solve s@(IpasirSolver i vc) = do
+            (conflict, sols) :: (IConflict Word, [ISolution Word]) <- solve' =<< mSolveInt s
+            return (Set.map (intToVar vc) conflict, mapLits vc <$> sols)
+            where
+                ints :: [Word]
+                ints = map (varToInt vc) ls
+                solve' :: IESolution Word -> IO (IConflict Word, [ISolution Word])
+                solve' (Left conflict) = return (conflict, [])
+                solve' (Right sol) = do
+                    let clause = mapMaybe (extract sol) ints
+                    ipasirAddClause clause i
+                    (conflict, sols) <- solve' =<< mSolveInt s
+                    return (conflict, sol:sols)
+                extract :: ISolution Word -> Word -> Maybe (Lit Word)
+                extract sol i = neg . (`lit` i) <$> val
+                    where
+                        val = sol Map.! i
+                sign' True = -1
+                sign' False = 1
+
 instance Ipasir i => Solver (IpasirSolver i) where
 
 instance Ord v => HasVariables [[Lit v]] where
