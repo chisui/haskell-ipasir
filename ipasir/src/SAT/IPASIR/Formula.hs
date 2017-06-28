@@ -220,18 +220,20 @@ instance FormulaOperation Normal where
 instance FormulaOperation Reduced where
     makeVar = Var
     rFormula = id
-    demorgan = demorgan' True
+    demorgan form = pdemorgan form
         where
-            demorgan' :: Bool -> RFormula v -> DFormula v
-            demorgan' b (Var x) = if b 
-                then PVar x
-                else NVar x
-            demorgan' b (Not f) = demorgan' (not b) f
-            demorgan' b (Odd (x:xs)) = Odd $ demorgan' b x : map (demorgan' True) xs
-            demorgan' b (All  f) = flipped      b  f
-            demorgan' b (Some f) = flipped (not b) f
-            flipped True  = All  . map (demorgan' True )
-            flipped False = Some . map (demorgan' False)
+             pdemorgan :: RFormula v -> DFormula v
+             pdemorgan (Var x)  = PVar x
+             pdemorgan (Not f)  = ndemorgan f
+             pdemorgan (All f)  = All  $ map pdemorgan f
+             pdemorgan (Some f) = Some $ map pdemorgan f
+             pdemorgan (Odd f)  = Odd $ map pdemorgan f
+             ndemorgan :: RFormula v -> DFormula v
+             ndemorgan (Var x)  = NVar x
+             ndemorgan (Not f)  = pdemorgan f
+             ndemorgan (All f)  = Some $ map ndemorgan f		
+             ndemorgan (Some f) = All  $ map ndemorgan f		
+             ndemorgan (Odd (x:xs)) = Odd $ map pdemorgan $ notB x : xs
     notB (Not x) = x
     notB f       = Not f
 
