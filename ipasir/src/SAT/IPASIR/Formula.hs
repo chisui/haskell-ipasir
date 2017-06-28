@@ -220,18 +220,20 @@ instance FormulaOperation Normal where
 instance FormulaOperation Reduced where
     makeVar = Var
     rFormula = id
-    demorgen = demorgen' True
+    demorgen form = pdemorgen form
         where
-            demorgen' :: Bool -> RFormula v -> DFormula v
-            demorgen' b (Var x) = if b 
-                then PVar x
-                else NVar x
-            demorgen' b (Not f) = demorgen' (not b) f
-            demorgen' b (Odd (x:xs)) = Odd $ demorgen' b x : map (demorgen' True) xs
-            demorgen' b (All  f) = flipped      b  f
-            demorgen' b (Some f) = flipped (not b) f
-            flipped True  = All  . map (demorgen' True )
-            flipped False = Some . map (demorgen' False)
+             pdemorgen :: RFormula v -> DFormula v
+             pdemorgen (Var x)  = PVar x
+             pdemorgen (Not f)  = ndemorgen f
+             pdemorgen (All f)  = All  $ map pdemorgen f
+             pdemorgen (Some f) = Some $ map pdemorgen f
+             pdemorgen (Odd f)  = Odd $ map pdemorgen f
+             ndemorgen :: RFormula v -> DFormula v
+             ndemorgen (Var x)  = NVar x
+             ndemorgen (Not f)  = pdemorgen f
+             ndemorgen (All f)  = Some $ map ndemorgen f		
+             ndemorgen (Some f) = All  $ map ndemorgen f		
+             ndemorgen (Odd (x:xs)) = Odd $ map pdemorgen $ notB x : xs
     notB (Not x) = x
     notB f       = Not f
 
