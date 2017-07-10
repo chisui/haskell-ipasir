@@ -55,11 +55,11 @@ a ++* b        = Even [a,b]
 a ->*  b       = notB a ||* b
 a <->* b       = notB $ a ++* b
 
-infixl 1 &&*
-infixl 2 ||*
-infixl 3 ++*
-infixl 4 ->*
-infixl 5 <->*
+infixl 6 &&*
+infixl 5 ||*
+infixl 4 ++*
+infixl 3 ->*
+infixl 1 <->*
 
 -- Removes all Yes and No from the Formulas
 rFormula :: (Eq v) => Formula v -> Formula v
