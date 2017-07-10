@@ -2,11 +2,14 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE InstanceSigs #-}
 module SAT.IPASIR.Cryptominisat
     ( CryptoMiniSat
     , cryptoMiniSat
     ) where
 
+import Data.Proxy
 import Data.Functor
 
 import Control.Comonad
@@ -16,25 +19,24 @@ import Control.Monad.Trans.State.Lazy
 import SAT.IPASIR
 import SAT.IPASIR.Cryptominisat.C
 
-cryptoMiniSat :: IpasirSolver CryptoMiniSat LitCache
-cryptoMiniSat = undefined
 
-instance Ord v => Clauses (MIpasirSolver CryptoMiniSat) (Formula v) where
+cryptoMiniSat :: Proxy (IpasirSolver CryptoMiniSat s)
+cryptoMiniSat = Proxy
+
+instance Ord v => Clauses (IpasirSolver CryptoMiniSat) (Formula v) where
     addClauses f = do
         solvers <- get
-        newSolver <- lift $ mapM addClauses' solvers
+        newSolver <- lift $ mapM (addClauses' f) solvers
         put newSolver
         return ()
         where
-            (rawOrs, rawXors)  = formulaToNormalform f
-            addClauses' (MIpasirSolver cSolver litCache) = do
-                ipasirAddClauses    ors  cSolver
-                cryptoAddXorClauses xors cSolver
-                return (MIpasirSolver cSolver litCache'')
+            addClauses' :: Formula v -> IpasirSolver CryptoMiniSat v -> IO (IpasirSolver CryptoMiniSat v)
+            addClauses' f (IpasirSolver cSolver vc) = do
+                ipasirAddClauses    intOrs  cSolver
+                cryptoAddXorClauses intXors cSolver
+                return (IpasirSolver cSolver vc')
                 where
-                    (litCache',  ors)      = clausesToIntClauses litCache  rawOrs
-                    (litCache'', xorsLits) = clausesToIntClauses litCache' wrappedXors
-                    xors = zipWith clauseToEXOrClause rawXors xorsLits
-                    clauseToEXOrClause raw lits = raw $> map extract lits
-                    wrappedXors = map return . extract <$> rawXors
+                    (vc', (ors, xors)) = formulaToNormalform vc f
+                    intOrs  = clausesToInt vc' ors
+                    intXors = clausesToInt vc' xors
                     

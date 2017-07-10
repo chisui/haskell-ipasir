@@ -1,4 +1,4 @@
-# Install script for directory: /home/chisui/projects/TAPPS/pb-encoder/pblib/BasicPBSolver
+# Install script for directory: /home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -29,7 +29,7 @@ endif()
 
 # Install shared libraries without execute permission?
 if(NOT DEFINED CMAKE_INSTALL_SO_NO_EXE)
-  set(CMAKE_INSTALL_SO_NO_EXE "0")
+  set(CMAKE_INSTALL_SO_NO_EXE "1")
 endif()
 
 if(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
@@ -39,12 +39,12 @@ if(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspeci
          FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/pbsolver"
          RPATH "")
   endif()
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE EXECUTABLE FILES "/home/chisui/projects/TAPPS/pb-encoder/pblib/BasicPBSolver/pbsolver")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE EXECUTABLE FILES "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/pbsolver")
   if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/pbsolver" AND
      NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/pbsolver")
     file(RPATH_CHANGE
          FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/pbsolver"
-         OLD_RPATH "/home/chisui/projects/TAPPS/pb-encoder/pblib/BasicPBSolver/../lib:/home/chisui/projects/TAPPS/pb-encoder/pblib/BasicPBSolver/minisat:"
+         OLD_RPATH "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/../lib:/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat:"
          NEW_RPATH "")
     if(CMAKE_INSTALL_DO_STRIP)
       execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/pbsolver")
@@ -60,5 +60,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/chisui/projects/TAPPS/pb-encoder/pblib/BasicPBSolver/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

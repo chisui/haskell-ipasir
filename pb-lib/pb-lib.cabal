@@ -16,7 +16,8 @@ extra-source-files:    ChangeLog.md
                      , lib/linux/libpblib.a
 cabal-version:       >=1.10
 
-Executable test
+Test-Suite pb-lib-test
+  type:             exitcode-stdio-1.0
   default-language:    Haskell2010
   hs-source-dirs:      test
   Main-Is:             Spec.hs
@@ -24,6 +25,9 @@ Executable test
                      , pb-lib
                      , transformers
                      , ipasir
+                     , containers
+                     , bifunctors
+                     , ipasir-cryptominisat
 library
   include-dirs:        pblib
   exposed-modules:     SAT.PseudoBoolean
@@ -37,10 +41,15 @@ library
                      , SAT.PseudoBoolean.C.Types.CVector
                      , SAT.PseudoBoolean.C.Types.WeightedLit
                      , SAT.PseudoBoolean.C.Bindings
+                     , SAT.IPASIR.PseudoBoolean.State
   other-extensions:    DeriveGeneric, ForeignFunctionInterface
   build-depends:       base >=4.9 && <4.10
                      , transformers
+                     , containers
+                     , comonad
+                     , vector
                      , ipasir
   hs-source-dirs:      src
   default-language:    Haskell2010
-  extra-libraries:     pblib
+  pkgconfig-depends:   pblib
+  extra-libraries:     stdc++

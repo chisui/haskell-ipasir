@@ -1,8 +1,8 @@
-# Install script for directory: C:/haskell-ipasir/pb-encoder/pblib/BasicPBSolver/minisat
+# Install script for directory: /home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/minisat")
+  set(CMAKE_INSTALL_PREFIX "/usr/local")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -27,30 +27,53 @@ if(NOT CMAKE_INSTALL_COMPONENT)
   endif()
 endif()
 
-if("${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "C:/haskell-ipasir/pb-encoder/pblib/BasicPBSolver/minisat/libminisat.a")
+# Install shared libraries without execute permission?
+if(NOT DEFINED CMAKE_INSTALL_SO_NO_EXE)
+  set(CMAKE_INSTALL_SO_NO_EXE "1")
 endif()
 
-if("${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "C:/haskell-ipasir/pb-encoder/pblib/BasicPBSolver/minisat/libminisat.dll.a")
+if(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat/libminisat.a")
 endif()
 
-if("${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "C:/haskell-ipasir/pb-encoder/pblib/BasicPBSolver/minisat/libminisat.dll")
-  if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/libminisat.dll" AND
-     NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/libminisat.dll")
-    if(CMAKE_INSTALL_DO_STRIP)
-      execute_process(COMMAND "C:/Users/Tobias/AppData/Local/Programs/stack/x86_64-windows/ghc-8.0.2/mingw/bin/strip.exe" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/libminisat.dll")
+if(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
+  foreach(file
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libminisat.so.2.1.0"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libminisat.so.2"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libminisat.so"
+      )
+    if(EXISTS "${file}" AND
+       NOT IS_SYMLINK "${file}")
+      file(RPATH_CHECK
+           FILE "${file}"
+           RPATH "")
     endif()
-  endif()
+  endforeach()
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE SHARED_LIBRARY FILES
+    "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat/libminisat.so.2.1.0"
+    "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat/libminisat.so.2"
+    "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat/libminisat.so"
+    )
+  foreach(file
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libminisat.so.2.1.0"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libminisat.so.2"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libminisat.so"
+      )
+    if(EXISTS "${file}" AND
+       NOT IS_SYMLINK "${file}")
+      if(CMAKE_INSTALL_DO_STRIP)
+        execute_process(COMMAND "/usr/bin/strip" "${file}")
+      endif()
+    endif()
+  endforeach()
 endif()
 
-if("${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
+if(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/minisat" TYPE DIRECTORY FILES
-    "C:/haskell-ipasir/pb-encoder/pblib/BasicPBSolver/minisat/minisat/mtl"
-    "C:/haskell-ipasir/pb-encoder/pblib/BasicPBSolver/minisat/minisat/utils"
-    "C:/haskell-ipasir/pb-encoder/pblib/BasicPBSolver/minisat/minisat/core"
-    "C:/haskell-ipasir/pb-encoder/pblib/BasicPBSolver/minisat/minisat/simp"
+    "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat/minisat/mtl"
+    "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat/minisat/utils"
+    "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat/minisat/core"
+    "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat/minisat/simp"
     FILES_MATCHING REGEX "/[^/]*\\.h$")
 endif()
 
@@ -62,5 +85,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "C:/haskell-ipasir/pb-encoder/pblib/BasicPBSolver/minisat/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/gerrit/haskell-ipasir/pb-lib/pblib/BasicPBSolver/minisat/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

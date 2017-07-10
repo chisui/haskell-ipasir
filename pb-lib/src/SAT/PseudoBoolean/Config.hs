@@ -3,7 +3,7 @@ module SAT.PseudoBoolean.Config where
 
 import GHC.Generics
 
-defaultConfig ::Config c
+defaultConfig :: Config c
 defaultConfig = Config
     { approximate = Nothing
     , useFormulaCache = False

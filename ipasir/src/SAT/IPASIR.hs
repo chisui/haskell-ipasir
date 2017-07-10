@@ -1,13 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE InstanceSigs #-}
 module SAT.IPASIR
     ( module Export
     ) where
@@ -16,18 +6,33 @@ import SAT.IPASIR.Api as Export
 import SAT.IPASIR.Literals as Export
 import SAT.IPASIR.IpasirSolver as Export
 import SAT.IPASIR.Solver as Export
-import SAT.IPASIR.LiteralCache as Export
-import SAT.IPASIR.Formula as Export (
-        Formula(..),
-        notB,
-        (&&*),
-        (||*),
-        (++*),
-        (->*),
-        (<->*),
-        formulaToNormalform,
-        normalformToCNF,
-        formulaToCNF,
-        normalformToFormula )
+import SAT.IPASIR.VarCache as Export
+import SAT.IPASIR.Formula as Export 
+    ( Formula
+    , GeneralFormula
+        ( Yes
+        , No
+        , Not
+        , All
+        , Some
+        , Odd 
+        )
+    , var
+    , notB
+    , (&&*)
+    , (||*)
+    , (++*)
+    , (->*)
+    , (<->*)
+    , formulaToNormalform
+    , normalformToCNF
+    , formulaToCNF
+    , normalformToFormula
+    , unpackVar
+    , isVar
+    , isTerminal
+    , asLVar
+    , asLit
+    )
 import SAT.IPASIR.FormulaPrinting as Export hiding (getVars)
 import SAT.IPASIR.IpasirSolver as Export

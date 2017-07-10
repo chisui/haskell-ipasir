@@ -2,13 +2,16 @@ module SAT.PseudoBoolean
     ( module Export
     , C.CardinalityMethod
     , C.Comp(..)
+    , Encoder
     , runEncoder
+    , evalEncoder
     , encodeNewGeq
     , encodeNewLeq
     , getClauses
     ) where
 
-import Control.Monad.Trans.State
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Lazy
 import System.IO.Unsafe
 
 import Foreign.ForeignPtr
@@ -16,30 +19,30 @@ import Foreign.ForeignPtr
 import Data.Word
 import Data.Int
 
+import SAT.IPASIR
 import qualified SAT.PseudoBoolean.C as C
 import SAT.PseudoBoolean.Config as Export
 import SAT.PseudoBoolean.C.Types.WeightedLit as Export
 
+type Encoder a = StateT (ForeignPtr C.C_Encoder) IO a
 
-type Encoder a = State (ForeignPtr C.C_Encoder) a
+evalEncoder :: C.CardinalityMethod a => Config a -> [C.WeightedLit] -> C.Comp -> Int64 -> Int64 -> Int -> Encoder b -> IO b
+evalEncoder config lits comp lower upper firstFree body = fst <$> runEncoder config lits comp lower upper firstFree body
 
-runEncoder :: C.CardinalityMethod a => Config a -> [C.WeightedLit] -> C.Comp -> Word64 -> Word64 -> Int -> Encoder b -> b
-runEncoder config lits comp lower upper firstFree body = unsafePerformIO $ do 
+runEncoder :: C.CardinalityMethod a => Config a -> [C.WeightedLit] -> C.Comp -> Int64 -> Int64 -> Int -> Encoder b -> IO (b, ForeignPtr C.C_Encoder)
+runEncoder config lits comp lower upper firstFree body = do 
     e <- C.encoder config lits comp lower upper firstFree
-    return $ evalState body e
+    runStateT body e
 
 withEncoder body = do
-    modify' perform
-    enc <- get
-    return $ unsafePerformIO $ C.getClauses enc
-    where
-        perform enc = body' enc `seq` enc
-        body' = unsafePerformIO . body
+    encoder <- get
+    lift $ body encoder
+    lift $ C.getClauses encoder
 
-encodeNewGeq :: Word64 -> Encoder [[Int32]]
+encodeNewGeq :: Int64 -> Encoder [[Lit Word]]
 encodeNewGeq bound = withEncoder (`C.encodeNewGeq` bound)
-encodeNewLeq :: Word64 -> Encoder [[Int32]]
+encodeNewLeq :: Int64 -> Encoder [[Lit Word]]
 encodeNewLeq bound = withEncoder (`C.encodeNewLeq` bound)
 
-getClauses :: Encoder [[Int32]]
+getClauses :: Encoder [[Lit Word]]
 getClauses = withEncoder return

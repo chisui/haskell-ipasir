@@ -8,20 +8,10 @@ import Data.Maybe
 
 data Clause v      = Or (OrClause v) | XOr (XOrClause v)
     deriving (Show, Eq, Ord)
-
-type EClause v     = Clause (Ext v)
-
 type OrClause v    = [Lit v]
 type XOrClause v   = Lit [v]
-
-type EOrClause v   = [ELit v]
-type EXOrClause v  = Lit [Ext v]
-
 type NormalForm v  = ([OrClause v], [XOrClause v])
-type ENormalForm v = ([EOrClause v], [EXOrClause v])
-
 type CNF v         = [ OrClause v]
-type ECNF v        = [EOrClause v]
 
 getLits :: Clause v -> [Lit v]
 getLits ( Or a) = a
@@ -46,19 +36,19 @@ partitionClauses _ ((XOr x):xs)
         
 
 
-evenToCNF' :: Bool -> Int -> [[Bool]]
-evenToCNF' False 0 = [[]]
-evenToCNF' True  0 = []
-evenToCNF' positive numberVars = map (False:) positives ++ map (True:) negatives
+oddToCNF' :: Bool -> Int -> [[Bool]]
+oddToCNF' False 0 = [[]]
+oddToCNF' True  0 = []
+oddToCNF' positive numberVars = map (False:) positives ++ map (True:) negatives
     where
-        negatives = evenToCNF' (not positive) (numberVars-1)
-        positives = evenToCNF' positive (numberVars-1)
+        negatives = oddToCNF' (not positive) (numberVars-1)
+        positives = oddToCNF' positive (numberVars-1)
 
-evenToCNF :: Lit [a] -> [[Lit a]]
-evenToCNF xclause = map (zipWith (\v b -> const v <$> fromBool b) vars) bClauses
+oddToCNF :: Lit [a] -> [[Lit a]]
+oddToCNF xclause = map (zipWith (\v b -> const v <$> fromBool b) vars) bClauses
     where
-        bClauses  = evenToCNF' (sign xclause) $ length $ vars
+        bClauses  = oddToCNF' (sign xclause) $ length $ vars
         vars      = extract xclause
 
 xclausesToCNF :: [Lit [a]] -> [[Lit a]]
-xclausesToCNF = concat . map evenToCNF
+xclausesToCNF = concat . map oddToCNF

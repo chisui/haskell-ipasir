@@ -28,6 +28,7 @@ list(REMOVE_ITEM  pblib_src_files "${pblib_SOURCE_DIR}/fuzzer.cpp" "${pblib_SOUR
 
 # add_library(pblib ${pblib_src_files})
 add_library(pblib SHARED ${pblib_src_files})
+set_property(TARGET pblib PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 
 # include_directories(${pblib_SOURCE_DIR}/BasicPBSolver/minisat/minisat/)
