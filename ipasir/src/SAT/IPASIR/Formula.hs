@@ -16,6 +16,7 @@ import Data.String (IsString(..))
 import Data.Foldable
 import Data.Bifunctor
 import Data.Traversable
+import Unsafe.Coerce
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
@@ -79,6 +80,7 @@ deriving instance           Traversable (GeneralFormula s)
 instance FormulaOperation s => Applicative (GeneralFormula s) where
     pure  = return
     (<*>) = ap
+
 instance FormulaOperation s => Monad (GeneralFormula s) where
     return = makeVar
     (>>=) (Var  v)  f = f v
@@ -104,35 +106,40 @@ instance (Ord v, FormulaOperation s) => HasVariables (GeneralFormula s v) where
         where
             (_,_,_,defs) = runTransComplete emptyCache $ transCnf $ demorgan f
 
--- | If the formula is a variable its value is returned.
+-- | If the formula is a variable its value is returned in a @Just@. Else @Nothing@
 unpackVar :: GeneralFormula s v -> Maybe v
 unpackVar (Var  v) = Just v
 unpackVar (PVar v) = Just v
 unpackVar (NVar v) = Just v
 unpackVar _        = Nothing
 
--- | Checks if a formula is just a variable
+-- | Checks if a formula is a variable. This doesn't include @Yes@ or @No@.
 isVar :: GeneralFormula s v -> Bool
 isVar = isJust . unpackVar
 
--- | Checks if a formual is a leaf
+-- | Checks if a formual is a leaf. This includes variables, @Yes@ and @No@.
 isTerminal :: GeneralFormula s v -> Bool
 isTerminal Yes = True
 isTerminal No  = True
 isTerminal f   = isVar f
 
--- | 
+-- | Transforms a literal into a leaf of a formula. This function is injective.
 asLVar :: Lit v -> DFormula v
 asLVar (Pos v) = PVar v
 asLVar (Neg v) = NVar v
 
+-- | Inverse function of @asLVar@. Returns an error, iff it is not in the range of @asLVar@.
 asLit :: DFormula v -> Lit v
 asLit (PVar v) = Pos v
 asLit (NVar v) = Neg v
+asLit form     = error $ "Can't transform that formula into a litaral. See function asLit in SAT.IPASIR.Formula."
 
+
+-- | Makes a value into a variable. 
 var :: v -> Formula v
 var = return
 
+-- | Infix operator for @All@.
 (&&*) :: GeneralFormula s v -> GeneralFormula s v -> GeneralFormula s v
 Yes &&* Yes = Yes
 No  &&* _   = No
@@ -143,6 +150,7 @@ l   &&* r   = All $ list l ++ list r
         list Yes     = []
         list x       = [x]
 
+-- | Infix operator for @Some@.
 (||*) :: GeneralFormula s v -> GeneralFormula s v -> GeneralFormula s v
 Yes ||* _   = Yes
 _   ||* Yes = Yes
@@ -152,13 +160,17 @@ l   ||* r   = Some $ list l ++ list r
         list No       = []
         list x        = [x]
 
+-- | Infix operator for @Odd@. This operator stands for xor. 
 (++*) :: GeneralFormula s v -> GeneralFormula s v -> GeneralFormula s v
 l ++* r = Odd $ list l ++ list r
     where
         list (Odd x) =  x
         list x       = [x]
 
+-- | Infix operator implication.
 a  ->* b = notB a   ||* b
+
+-- | Infix operator equivalence.
 a <->* b = notB $ a ++* b
 
 infixl 1  &&*
@@ -171,19 +183,24 @@ class (Foldable (GeneralFormula s), Traversable (GeneralFormula s)) => FormulaOp
     -- | create a var
     makeVar :: v -> GeneralFormula s v
     -- | Removes all occurances of @Yes@ and @No@ from the Formulas.
-    rFormula :: Eq v => GeneralFormula s v -> RFormula v
+    rFormula :: GeneralFormula s v -> RFormula v
     -- | Push all occurances of @Not@ down to the variables.
-    demorgan :: Eq v => GeneralFormula s v -> DFormula v
-    -- | Negate a formula.
+    demorgan :: GeneralFormula s v -> DFormula v
+    -- | Negates a formula.
     notB :: GeneralFormula s v -> GeneralFormula s v
 
 instance FormulaOperation Normal where
     makeVar = Var
     rFormula formula 
-        | Yes == reduced = All []
-        | No  == reduced = Some []
+        | isYes reduced  = All []
+        | isNo  reduced  = Some []
         | otherwise      = transformer reduced
         where
+            isYes Yes = True
+            isYes _   = False
+            isNo No   = True
+            isNo _    = False
+
             reduced = rFormula' formula
 
             transformer :: Formula v -> RFormula v
@@ -193,33 +210,34 @@ instance FormulaOperation Normal where
             transformer (Some l) = Some $ map transformer l
             transformer (Odd l)  = Odd $ map transformer l
 
+            rFormula' :: Formula v -> Formula v
             rFormula' (All l)
-                | No `elem` newForms  = No
-                | null reducedList    = Yes
-                | otherwise           = All reducedList
+                | any isNo newForms  = No
+                | null reducedList   = Yes
+                | otherwise          = All reducedList
                 where 
-                    newForms      = map rFormula' l
-                    reducedList   = filter (/=Yes) newForms
+                    newForms         = map rFormula' l
+                    reducedList      = filter (not . isYes) newForms
             rFormula' (Some l)
-                | Yes `elem` newForms = Yes
-                | null reducedList    = No
-                | otherwise           = Some reducedList
+                | any isYes newForms = Yes
+                | null reducedList   = No
+                | otherwise          = Some reducedList
                 where 
-                    newForms      = map rFormula' l
-                    reducedList   = filter (/=No) newForms
+                    newForms         = map rFormula' l
+                    reducedList      = filter (not . isNo) newForms
             rFormula' (Odd l)
-                | null reducedList  = if positive then Yes else No
-                | positive          = Odd $ notB (head reducedList) : tail reducedList
-                | otherwise         = Odd reducedList
+                | null reducedList   = if positive then Yes else No
+                | positive           = Odd $ notB (head reducedList) : tail reducedList
+                | otherwise          = Odd reducedList
                 where 
                     newForms            = map rFormula' l
                     (trash,reducedList) = partition isTerminal newForms
-                    positive            = odd $ length $ filter ((==Yes).rFormula') trash
-                    isTerminal form = form' == No || form' == Yes
+                    positive            = odd $ length $ filter (isYes . rFormula') trash
+                    isTerminal form = isNo form' || isYes form'
                         where form' = rFormula' form
             rFormula' (Not x)
-                | x' == Yes = No
-                | x' == No  = Yes
+                | isYes x' = No
+                | isNo x'  = Yes
                 | otherwise = Not x'
                 where x' = rFormula' x
             rFormula' x = x
@@ -267,11 +285,11 @@ freshLit :: Ord v => Trans v (Lit (Var v))
 freshLit = state (\(cache, clauses, defs) -> let (newVar, newCache) = newHelper cache
                                              in  ( Pos newVar,(newCache, clauses ,defs) ) )
                                        
--- | Add one clause.
+-- | Adds one clause into the transformator monad.
 addClause :: Clause (Var v) -> Trans v ()
 addClause clause = addClauses [clause]
 
--- | Add some clauses.
+-- | Adds some clauses into the transformator monad.
 addClauses :: forall v. [Clause (Var v)] -> Trans v ()
 addClauses clauses = modify (\(cache, clauses', defs) -> (cache, clauses ++ clauses', defs)) 
 
@@ -348,19 +366,16 @@ partitionOdd = partitionList checker
 
 -- _____________________________________________________________
 
-type Env v = Map.Map Integer (Lit v)
-
 lit2ELit :: Lit v -> Lit (Var v)
 lit2ELit (Pos x) = Pos $ Right x
 lit2ELit (Neg x) = Neg $ Right x
-
+ 
 transCnf :: Ord v => DFormula v -> Trans v [Clause (Var v)]
 transCnf (PVar v) = return [Or [Pos (Right v)]]
 transCnf (NVar v) = return [Or [Neg (Right v)]]
 
 transCnf (All l) = do
     a :: [[Clause (Var v)]] <- mapM transCnf l 
---    addClauses a
     return $ concat a
 
 transCnf (Some l) = do
@@ -384,21 +399,9 @@ transLit a = do
 litOfNormalForm :: forall v. Ord v => [Clause (Var v)] -> Trans v (Lit (Var v))
 litOfNormalForm clauses = do
     let (ors, xors) = partitionClauses False clauses
---    let orLits  = map getLits ors  :: [[Lit (Var v)]]
---    let xorLits = map getLits xors :: [Lit [Var v]]
-  
     orHelper  :: [Lit (Var v)] <- mapM litOfOr ors
     xorHelper :: [Lit (Var v)] <- mapM litOfXor xors
-
     litOfAnd $ orHelper ++ xorHelper
-
--- | Convert a CNF to a single Lit.
-{-lit_of_cnf :: [[Lit (Var v)]] -> Trans v (Lit (Var v))
-lit_of_cnf ds = do
-  xs <- sequence (map litOfOr ds)
-  y <- litOfand xs
-  return y
--}
 
 -- | Convert a conjunction of Lits to a single Lit.
 litOfAnd :: Ord v => [Lit (Var v)] -> Trans v (Lit (Var v))
@@ -424,7 +427,7 @@ litOfOr ds = do
     addClause $ Or $ neg x : ds
     return x
 
--- | Convert an exclusive or of two Lits to a single Lit.
+-- | Convert an exclusive or of two Lits to a single Lit. The function does that by the definition z <->* x1 ++* ... ++* xn 
 litOfXor :: Ord v => Lit [Var v] -> Trans v (Lit (Var v))
 litOfXor (Pos [l]) = return $ Pos l
 litOfXor (Neg [l]) = return $ Neg l

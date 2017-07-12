@@ -49,9 +49,13 @@ import SAT.IPASIR.Formula as Export
 import SAT.IPASIR.FormulaPrinting as Export
     ( TransformationStep (..)
     , showFormulaStatistics
+    , printFormulaStatistics
     , showFormulaTransformation
+    , printFormulaTransformation
     , showFormula
+    , printFormula
     , showFormulaEither
+    , printFormulaEither
     )
 import SAT.IPASIR.IpasirSolver as Export
     ( IpasirSolver(..) )

@@ -154,9 +154,6 @@ printFormulaTransformation s v = putStrLn $ showFormulaTransformation s v
 showFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> String
 showFormulaTransformation = showFormulaTransformation' (\i->"Helper"++show i)
 
-printFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> IO () 
-printFormulaTransformation' f s v = putStrLn $ showFormulaTransformation' f s v
-
 showFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> String
 showFormulaTransformation' showE TSNormal     formula = showFormula formula
 showFormulaTransformation' showE TSReduced    formula = showFormula $ rFormula formula
@@ -214,13 +211,9 @@ showDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
                 (💩)                 = (<$>).(<$>).(<$>)
                 
 
-<<<<<<< HEAD
-=======
-
 printFormula :: (Show v) => GeneralFormula s v -> IO ()
 printFormula = putStrLn . showFormula
 
->>>>>>> bad0b66fdf7449cdea7e7551a6804359cb888833
 showFormula :: (Show v) => GeneralFormula s v -> String
 showFormula = showFormula' tab showElem
 
@@ -233,10 +226,6 @@ showFormulaEither showHelper = showFormula' tab shower
     where
     --    show :: Formula (ELit v) -> String
         shower x = maybe (showElem x) (either showHelper show) (unpackVar x)
-
-
-printFormula' :: forall fo v s. String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> IO ()
-printFormula' s g f = putStrLn $ showFormula' s g f
 
 showFormula' :: forall fo v s. String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> String
 showFormula' tab showFunction f
