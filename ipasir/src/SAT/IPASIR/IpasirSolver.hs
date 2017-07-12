@@ -8,10 +8,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TupleSections #-}
-module SAT.IPASIR.IpasirSolver
-( IpasirSolver(..)
-, IpasirSolver(..)
-) where
+module SAT.IPASIR.IpasirSolver where
 
 import Control.Comonad
 import Control.Monad.Trans.State.Lazy

@@ -1,19 +1,4 @@
-module SAT.IPASIR.VarCache
-    ( Var
-    , VarCache
-    , emptyCache
-    , newVar
-    , newVars
-    , newHelper
-    , newHelpers
-    , numVars
-    , vars
-    , varToInt
-    , clausesToInt
-    , intToVar
-    , showIntToVar
-    , showVarToInt
-    ) where
+module SAT.IPASIR.VarCache where
 
 import qualified Data.Map    as Map
 import qualified Data.Vector as Vec

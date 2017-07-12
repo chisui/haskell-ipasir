@@ -21,21 +21,6 @@ import SAT.IPASIR.Literals
 import SAT.IPASIR.VarCache
 import SAT.IPASIR.Solver
 
-tester1 = Var 1 &&* Not (Var 2) &&* (Var 1 ||* Var 2) :: Formula Int
-tester2 = Var 1 &&* Var 2 &&* (Var 1 ->* Var 2) &&* Not (Var 2 ->* Var 1) :: Formula Int
-tester3 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 &&* Var 4) ->* Var 3) ):: Formula Int
-tester4 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 <->* Var 4) ->* Var 3) ):: Formula Int
-tester5 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* Var 2)):: Formula Int
-tester6 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* No)):: Formula Int
-tester7 = Not $ Odd $ map Var "ab"  :: Formula Char
-tester8 = Odd $ map Var "abc" :: Formula Char
-tester9 = Odd [ Not $ Var 'a', Not $ Var 'b', Not $Var 'c'] :: Formula Char
-tester0 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', All [Var 'a',Var 'b']]) ] ) :: Formula Char
-tester10 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', Odd [Var 'a', Some [All [Var 'x', Var 'c'], Var 'c']]]) ] ) 
-
-tester11 = Some [Odd [Some [Var 3, Var 4], Var 2],  Var 1] :: Formula Int
-tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Var 2]] :: Formula Int
-
 data TransformationStep = TSNormal | TSReduced | TSDemorgan | TSHelperDefs | TSHelperForm | TSXCNF | TSCNF
 
 foldFormula :: ( a -> GeneralFormula s v -> a) -> a -> GeneralFormula s v ->  a
@@ -62,13 +47,6 @@ showElem (Not f)   = "-"
 showElem (Var x)   = show x
 showElem (PVar x)  = '+' : show x
 showElem (NVar x)  = '-' : show x
-
-getVars :: GeneralFormula s v -> [v]
-getVars = foldFormula f []
-    where
-        f list form
-            | isVar form = (fromJust . unpackVar) form : list
-            | otherwise  = list
 
 tab = "    "
 
@@ -226,7 +204,6 @@ printDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
                 (💩) :: (Functor f1, Functor f2, Functor f3) => (a -> b) -> f1 (f2 (f3 a)) -> f1 (f2 (f3 b))
                 (💩)                 = (<$>).(<$>).(<$>)
                 
-
 
 showFormula :: (Show v) => GeneralFormula s v -> String
 showFormula = showFormula' tab showElem

@@ -8,8 +8,6 @@
 
 module SAT.IPASIR.Formula where
 
-import Prelude hiding (all)
-
 import Data.Bits
 import Data.Maybe
 import Data.List
@@ -62,6 +60,7 @@ data GeneralFormula s v where
     Some :: [GeneralFormula s v] -> GeneralFormula s v
     -- | An odd number is @True@.
     Odd  :: [GeneralFormula s v] -> GeneralFormula s v
+
 deriving instance Show v => Show        (GeneralFormula s v)
 deriving instance Ord v  => Ord         (GeneralFormula s v)
 deriving instance Eq v   => Eq          (GeneralFormula s v)
@@ -222,18 +221,18 @@ instance FormulaOperation Reduced where
     rFormula = id
     demorgan form = pdemorgan form
         where
-             pdemorgan :: RFormula v -> DFormula v
-             pdemorgan (Var x)  = PVar x
-             pdemorgan (Not f)  = ndemorgan f
-             pdemorgan (All f)  = All  $ map pdemorgan f
-             pdemorgan (Some f) = Some $ map pdemorgan f
-             pdemorgan (Odd f)  = Odd $ map pdemorgan f
-             ndemorgan :: RFormula v -> DFormula v
-             ndemorgan (Var x)  = NVar x
-             ndemorgan (Not f)  = pdemorgan f
-             ndemorgan (All f)  = Some $ map ndemorgan f		
-             ndemorgan (Some f) = All  $ map ndemorgan f		
-             ndemorgan (Odd (x:xs)) = Odd $ map pdemorgan $ notB x : xs
+            pdemorgan :: RFormula v -> DFormula v
+            pdemorgan (Var x)  = PVar x
+            pdemorgan (Not f)  = ndemorgan f
+            pdemorgan (All f)  = All  $ map pdemorgan f
+            pdemorgan (Some f) = Some $ map pdemorgan f
+            pdemorgan (Odd f)  = Odd $ map pdemorgan f
+            ndemorgan :: RFormula v -> DFormula v
+            ndemorgan (Var x)  = NVar x
+            ndemorgan (Not f)  = pdemorgan f
+            ndemorgan (All f)  = Some $ map ndemorgan f
+            ndemorgan (Some f) = All  $ map ndemorgan f
+            ndemorgan (Odd (x:xs)) = Odd $ map pdemorgan $ notB x : xs
     notB (Not x) = x
     notB f       = Not f
 
