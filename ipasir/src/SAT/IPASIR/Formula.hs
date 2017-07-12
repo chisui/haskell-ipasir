@@ -29,18 +29,26 @@ import SAT.IPASIR.Solver (HasVariables(..))
 import SAT.IPASIR.VarCache
 
 
-type  Formula v = GeneralFormula Normal v
-type RFormula v = GeneralFormula Reduced v
+-- | A normal formula of any form
+type  Formula v = GeneralFormula Normal     v
+-- | A formula after constants are eliminated
+type RFormula v = GeneralFormula Reduced    v
+-- | A formula after De Morgan's laws was applied
 type DFormula v = GeneralFormula Demorganed v
 
+-- | Label for a normal formula of any form
 data Normal
+-- | Label for a formula after constants are eliminated
 data Reduced
+-- | Label for a formula after De Morgan's laws was applied
 data Demorganed
 
+-- | class of labels that may contain @Not@ or @Var@
 class Upper a where
 instance Upper Normal where
 instance Upper Reduced where
 
+-- | A Formula that combines @Normal@, @Reduced@ and @Demorganed@ formulas.
 data GeneralFormula s v where 
     -- | A variable.
     Var  :: Upper s => v -> GeneralFormula s v
@@ -83,8 +91,7 @@ instance FormulaOperation s => Monad (GeneralFormula s) where
     (>>=) Yes       _ = Yes
     (>>=) No        _ = No
 
---fBind :: FormulaOperation s => GeneralFormula s a -> (a ->  GeneralFormula s b) -> GeneralFormula s b
-
+-- | For easy @Var@ creation.
 instance (IsString v) => IsString (Formula v) where
     fromString = return . fromString
 
@@ -97,20 +104,24 @@ instance (Ord v, FormulaOperation s) => HasVariables (GeneralFormula s v) where
         where
             (_,_,_,defs) = runTransComplete emptyCache $ transCnf $ demorgan f
 
+-- | If the formula is a variable its value is returned.
 unpackVar :: GeneralFormula s v -> Maybe v
 unpackVar (Var  v) = Just v
 unpackVar (PVar v) = Just v
 unpackVar (NVar v) = Just v
 unpackVar _        = Nothing
 
+-- | Checks if a formula is just a variable
 isVar :: GeneralFormula s v -> Bool
 isVar = isJust . unpackVar
 
+-- | Checks if a formual is a leaf
 isTerminal :: GeneralFormula s v -> Bool
 isTerminal Yes = True
 isTerminal No  = True
 isTerminal f   = isVar f
 
+-- | 
 asLVar :: Lit v -> DFormula v
 asLVar (Pos v) = PVar v
 asLVar (Neg v) = NVar v
@@ -150,11 +161,11 @@ l ++* r = Odd $ list l ++ list r
 a  ->* b = notB a   ||* b
 a <->* b = notB $ a ++* b
 
-infixl 6 &&*
-infixl 5 ||*
-infixl 4 ++*
-infixl 3 ->*
-infixl 1 <->*
+infixl 1  &&*
+infixl 2  ||*
+infixl 3  ++*
+infixl 4  ->*
+infixl 5 <->*
 
 class (Foldable (GeneralFormula s), Traversable (GeneralFormula s)) => FormulaOperation s where
     -- | create a var
@@ -221,6 +232,7 @@ instance FormulaOperation Reduced where
     rFormula = id
     demorgan form = pdemorgan form
         where
+<<<<<<< HEAD
             pdemorgan :: RFormula v -> DFormula v
             pdemorgan (Var x)  = PVar x
             pdemorgan (Not f)  = ndemorgan f
@@ -233,6 +245,21 @@ instance FormulaOperation Reduced where
             ndemorgan (All f)  = Some $ map ndemorgan f
             ndemorgan (Some f) = All  $ map ndemorgan f
             ndemorgan (Odd (x:xs)) = Odd $ map pdemorgan $ notB x : xs
+=======
+             pdemorgan :: RFormula v -> DFormula v
+             pdemorgan (Var x)  = PVar x
+             pdemorgan (Not f)  = ndemorgan f
+             pdemorgan (All f)  = All  $ map pdemorgan f
+             pdemorgan (Some f) = Some $ map pdemorgan f
+             pdemorgan (Odd f)  = Odd $ map pdemorgan f
+
+             ndemorgan :: RFormula v -> DFormula v
+             ndemorgan (Var x)  = NVar x
+             ndemorgan (Not f)  = pdemorgan f
+             ndemorgan (All f)  = Some $ map ndemorgan f
+             ndemorgan (Some f) = All  $ map ndemorgan f
+             ndemorgan (Odd (x:xs)) = Odd $ map pdemorgan $ notB x : xs
+>>>>>>> bad0b66fdf7449cdea7e7551a6804359cb888833
     notB (Not x) = x
     notB f       = Not f
 
