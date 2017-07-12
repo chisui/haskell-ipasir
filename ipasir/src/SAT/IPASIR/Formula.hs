@@ -232,34 +232,18 @@ instance FormulaOperation Reduced where
     rFormula = id
     demorgan form = pdemorgan form
         where
-<<<<<<< HEAD
             pdemorgan :: RFormula v -> DFormula v
             pdemorgan (Var x)  = PVar x
             pdemorgan (Not f)  = ndemorgan f
             pdemorgan (All f)  = All  $ map pdemorgan f
             pdemorgan (Some f) = Some $ map pdemorgan f
-            pdemorgan (Odd f)  = Odd $ map pdemorgan f
+            pdemorgan (Odd f)  = Odd  $ map pdemorgan f
             ndemorgan :: RFormula v -> DFormula v
             ndemorgan (Var x)  = NVar x
             ndemorgan (Not f)  = pdemorgan f
             ndemorgan (All f)  = Some $ map ndemorgan f
             ndemorgan (Some f) = All  $ map ndemorgan f
             ndemorgan (Odd (x:xs)) = Odd $ map pdemorgan $ notB x : xs
-=======
-             pdemorgan :: RFormula v -> DFormula v
-             pdemorgan (Var x)  = PVar x
-             pdemorgan (Not f)  = ndemorgan f
-             pdemorgan (All f)  = All  $ map pdemorgan f
-             pdemorgan (Some f) = Some $ map pdemorgan f
-             pdemorgan (Odd f)  = Odd $ map pdemorgan f
-
-             ndemorgan :: RFormula v -> DFormula v
-             ndemorgan (Var x)  = NVar x
-             ndemorgan (Not f)  = pdemorgan f
-             ndemorgan (All f)  = Some $ map ndemorgan f
-             ndemorgan (Some f) = All  $ map ndemorgan f
-             ndemorgan (Odd (x:xs)) = Odd $ map pdemorgan $ notB x : xs
->>>>>>> bad0b66fdf7449cdea7e7551a6804359cb888833
     notB (Not x) = x
     notB f       = Not f
 
@@ -271,11 +255,7 @@ instance FormulaOperation Demorganed where
     rFormula (Some l) = Some $ map rFormula l
     rFormula (Odd  l) = Odd  $ map rFormula l
     demorgan = id
-    notB (PVar x) = NVar x
-    notB (NVar x) = PVar x
-    notB (All  l) = Some $ map notB l
-    notB (Some l) = All  $ map notB l
-    notB (Odd (x:xs)) = Odd $ notB x : xs
+    notB     = demorgan . notB . rFormula
 
 type Trans v a = State (VarCache v, [Clause (Var v)], [(Var v, DFormula (Var v))]) a
 
