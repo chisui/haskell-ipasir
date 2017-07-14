@@ -63,11 +63,11 @@ data GeneralFormula s v where
     No   :: GeneralFormula Normal v
     -- | Negation.
     Not  :: Upper s => GeneralFormula s v -> GeneralFormula s v
-    -- | All are @True@.
+    -- | All are @True@. It realized @and@.
     All  :: [GeneralFormula s v] -> GeneralFormula s v
-    -- | At least one is @True@.
+    -- | At least one is @True@. It realized @or@.
     Some :: [GeneralFormula s v] -> GeneralFormula s v
-    -- | An odd number is @True@.
+    -- | An odd number is @True@. It realized @exclusive or@. 
     Odd  :: [GeneralFormula s v] -> GeneralFormula s v
 
 deriving instance Show v => Show        (GeneralFormula s v)
@@ -275,12 +275,20 @@ instance FormulaOperation Demorganed where
     demorgan = id
     notB     = demorgan . notB . rFormula
 
+{- |Transformation monad. It is used to transform a 'DFormula' info a XCNF. See also @transCnf@
+    The tripel in the State stands for
+
+        1. The 'VarCache'. It is used while transforming to create helper variables
+        2. Already generated xclauses. 
+        3. The definitions of the helper variables. This is only important for the printing functions. See "SAT.IPASIR.FormulaPrinting"
+-}
 type Trans v a = State (VarCache v, [Clause (Var v)], [(Var v, DFormula (Var v))]) a
 
+-- | Adds a definition into the transformation monad.
 addDefinition :: Var v -> DFormula (Var v) -> Trans v ()
 addDefinition i f = modify (\(cache, clauses, defs) -> (cache, clauses, (i,f):defs))
 
--- | Return a fresh Lit.
+-- | Return a fresh Lit. The Literal is a new helper variables created by the 'VarCache' inside of the transformator monad
 freshLit :: Ord v => Trans v (Lit (Var v))
 freshLit = state (\(cache, clauses, defs) -> let (newVar, newCache) = newHelper cache
                                              in  ( Pos newVar,(newCache, clauses ,defs) ) )
@@ -293,13 +301,25 @@ addClause clause = addClauses [clause]
 addClauses :: forall v. [Clause (Var v)] -> Trans v ()
 addClauses clauses = modify (\(cache, clauses', defs) -> (cache, clauses ++ clauses', defs)) 
 
+-- | Generates the XCNF. The 'VarCache' is used to create helper variables. 
 runTrans :: VarCache v -> Trans v [Clause (Var v)] -> (VarCache v, NormalForm (Var v))
 runTrans cache trans = (newCache, (or,xor) ) 
     where
         (mainCNF, (newCache, cnfs, _) ) = runState trans (cache, [], [])
         cnf      = mainCNF++cnfs
         (or,xor) = partitionClauses True cnf
-        
+
+{- |See also 'runTrans'. The return values stands for
+
+        1. The main XCNF. It is not defining the helper variables in the solver, but uses them. 
+        2. The new 'VarCache' (after creating the helper variables).
+        3. The XCNF which defines the helper variables.
+        4. The definitions of the new helper variables.
+
+    The concatenation of 1 and 3 results in the same NormalForm as by using runTrans that means:
+
+    > snd (runTrans cache t) == let (main,_,rest,_) = runTransComplete cache t in partitionClauses True (main++rest)
+-}
 runTransComplete :: VarCache v -> Trans v [Clause (Var v)] -> ([Clause (Var v)], VarCache v, [Clause (Var v)], [(Var v, DFormula (Var v))])
 runTransComplete cache trans = (mainCNF, newCache, cnfs, defs)
     where
@@ -307,35 +327,46 @@ runTransComplete cache trans = (mainCNF, newCache, cnfs, defs)
         
 -- -----------------------------------------------------------------------------
 
+-- | Transforms a formula into a XCNF. The 'VarCache' is used to create helper variables.
 formulaToNormalform :: (Ord v, FormulaOperation s) => VarCache v -> GeneralFormula s v -> (VarCache v, NormalForm (Var v))
 formulaToNormalform cache form =  runTrans cache' $ transCnf $ demorgan form
     where
         cache' = snd $ newVars cache $ Set.toList $ getLabels form
 
+-- | Transforms a XCNF into a CNF. That means this function removes all xclauses. 
 normalformToCNF :: Eq v => NormalForm (Var v) -> CNF (Var v)
 normalformToCNF (or,xor) = or ++ concat (map oddToCNF xor)
 
+-- | Transforms a formula into a CNF. The 'VarCache' is used to create helper variables. 
 formulaToCNF :: (Ord v, FormulaOperation s) => VarCache v -> GeneralFormula s v -> (VarCache v , CNF (Var v))
 formulaToCNF cache formula = second normalformToCNF $ formulaToNormalform cache formula
 
-normalformToFormula :: forall v. NormalForm (Var v) -> Formula (Var v)
-normalformToFormula (or,xor)   = All $ orFormulas ++ xorFormulas
+{- | Transforms a Normalform into a Formula. The resulting formula consists of one 'All', which has only 'Some' and 'Odd' inside (for every clause and xclauses). 
+    If you want to transform a cnf into a formula, use 
+
+    > formula = normalformToFormula (cnf,[])
+
+    This function is not the inverse function of 'formulaToNormalform'. Even the type is switching, because the resulting formula has helper variables, so its @Formula (Var v)@ instead of @Formula v@.
+-}
+normalformToFormula :: NormalForm (Var v) -> Formula (Var v)
+normalformToFormula c = normalformToFormula' c
     where
-        orFormulas  :: [Formula (Var v)]
-        orFormulas   = [ Some $ map (transformLitOdd . (Var <$>)) clause | clause <-  or]
-        xorFormulas :: [Formula (Var v)]
-        xorFormulas  = [ transformLitOdd $ ((Odd . map Var) <$> clause) | clause <- xor]
-        transformLitOdd :: Lit (Formula a) -> Formula a
-        transformLitOdd (Pos form) = form
-        transformLitOdd (Neg form) = Not form
-        
+        normalformToFormula' :: forall v. NormalForm (Var v) -> Formula (Var v)
+        normalformToFormula' (or,xor)   = All $ orFormulas ++ xorFormulas
+            where
+                orFormulas  :: [Formula (Var v)]
+                orFormulas   = [ Some $ map (transformLitOdd . (Var <$>)) clause | clause <-  or]
+                xorFormulas :: [Formula (Var v)]
+                xorFormulas  = [ transformLitOdd $ ((Odd . map Var) <$> clause) | clause <- xor]
+                transformLitOdd :: Lit (Formula a) -> Formula a
+                transformLitOdd (Pos form) = form
+                transformLitOdd (Neg form) = Not form
 
-
-
+-- |Just used to implement 'partitionAll', 'partitionSome' and 'partitionOdd'.
 partitionList :: (DFormula v -> (Bool,[DFormula v])) -> [DFormula v] -> ([Lit v], [DFormula v])
 partitionList f [] = ([],[])
 partitionList f (x:xs)
-    | isVar x  = (lit x:lits2, rest2)
+    | isVar x      = (lit x:lits2, rest2)
     | correctType  = (lits1++lits2, rest1++rest2) 
     | otherwise    = (lits2, x:rest2) 
     where
@@ -346,30 +377,57 @@ partitionList f (x:xs)
         (lits1, rest1)      = partitionList f list
         (lits2, rest2)      = partitionList f xs
 
+{- |Unpacks recursivly all @All@'s in the list and gives all literals (first returned value)
+    and other formulas (second returned value).
+
+    First value: Returns all the literals, which can be reached by only unpacking @All@. It does
+    not unpack @Some@ or @Odd@. 
+
+    Second value: Every formula, which also can be reached by unpacking every @All@, but which
+    aren't literals
+
+    Example: Denote @a,...,i@ are literals. Then
+
+    > All [
+    >     a,
+    >     Some [ b, All [c,d] ],
+    >     All [e, All [f,g], Odd [h, i]]
+    >   ]
+    
+    would return 
+    
+    > ( [a,e,f,g], [ Some [b, All [c,d]], Odd [h, i] )
+-}
 partitionAll  :: [DFormula v] -> ([Lit v], [DFormula v])
 partitionAll  = partitionList checker
     where
         checker (All l)  = (True,l)
-        checker _         = (False,[])
+        checker _        = (False,[])
 
+{- |Equivalent function to 'partitionAll', but unpacking every @Some@ -}
 partitionSome :: [DFormula v] -> ([Lit v], [DFormula v])
 partitionSome = partitionList checker
     where
         checker (Some l) = (True,l)
-        checker _         = (False,[])
+        checker _        = (False,[])
 
+{- |Equivalent function to 'partitionAll', but unpacking every @Odd@ -}
 partitionOdd :: [DFormula v] -> ([Lit v], [DFormula v])
 partitionOdd = partitionList checker
     where
         checker (Odd l)  = (True,l)
-        checker _         = (False,[])
+        checker _        = (False,[])
 
 -- _____________________________________________________________
 
+-- | Transforms a literal into an ELit (with same value and same sign).
 lit2ELit :: Lit v -> Lit (Var v)
 lit2ELit (Pos x) = Pos $ Right x
 lit2ELit (Neg x) = Neg $ Right x
- 
+
+{- |Return a XCNF which is equivalent to the given formula. Note, that the XCNF 
+    also uses helper variables, which are defined in the state of the transformator.
+-}
 transCnf :: Ord v => DFormula v -> Trans v [Clause (Var v)]
 transCnf (PVar v) = return [Or [Pos (Right v)]]
 transCnf (NVar v) = return [Or [Neg (Right v)]]
@@ -391,19 +449,55 @@ transCnf (Odd l) = do
     let s     = foldl xor True $ map (not.sign) lits'
     return [XOr $ (const (map extract lits') <$> fromBool s)]
 
+{- |Returns a variable, which is equivalent to:
+
+    /The given formula is @True@. /
+
+    See 'litOfNormalForm', 'litOfAnd', 'litOfOr' and 'litOfXor' to get more Information about 
+    the exact formula.
+-}
+transLit :: Ord v => DFormula v -> Trans v (Lit (Var v)) 
 transLit a = do
     cnf    <- transCnf a
     litOfNormalForm cnf
 
--- | Convert a CNF to a single Lit.
-litOfNormalForm :: forall v. Ord v => [Clause (Var v)] -> Trans v (Lit (Var v))
+{- |Returns a variable, which is equivalent to:
+
+    /The given XCNF is @True@. /
+
+    See 'litOfAnd', 'litOfOr' and 'litOfXor' to get more Information about the exact formula.
+-}
+litOfNormalForm :: Ord v => [Clause (Var v)] -> Trans v (Lit (Var v))
 litOfNormalForm clauses = do
     let (ors, xors) = partitionClauses False clauses
-    orHelper  :: [Lit (Var v)] <- mapM litOfOr ors
-    xorHelper :: [Lit (Var v)] <- mapM litOfXor xors
+    orHelper  <- mapM litOfOr ors
+    xorHelper <- mapM litOfXor xors
     litOfAnd $ orHelper ++ xorHelper
 
--- | Convert a conjunction of Lits to a single Lit.
+{- |Returns a variable, which is equivalent to:
+
+    /All literals of the given list are @True@./ 
+
+    If the list of literals has a length of 2 or greater, the function does is by the definition:    
+ 
+    $$ z \\leftrightarrow x_1 \\vee \\ldots \\vee x_n $$
+
+    which can be produced by the formula:
+
+    $$ \\left(z \\vee \\bigvee_{i=1}^n \\lnot x_i\\right) \\wedge \\bigwedge_{i=1}^n \\left( \\lnot  z \\vee x_i \\right)   $$
+
+    In Haskell:
+
+    > All [ 
+    >       Some [notB z, x1), 
+    >       ...
+    >       Some [notB z, xn),
+    >       Some [z, notB x1, ... , notB xn]
+    >   ]
+
+    The function changes the State of the transformator to add @z@ and its definition 
+    to the helper variables.
+-}
 litOfAnd :: Ord v => [Lit (Var v)] -> Trans v (Lit (Var v))
 litOfAnd [l] = return l
 litOfAnd ds = do
@@ -416,7 +510,30 @@ litOfAnd ds = do
     addClause $ Or $ x : [neg c | c <- ds]
     return x
 
--- | Convert a disjunction of Lits to a single Lit.
+{- |Returns a variable, which is equivalent to:
+
+    /One literal of the given list is @True@./ 
+
+    If the list of literals has a length of 2 or greater, the function does is by the definition:    
+ 
+    $$ z \\leftrightarrow x_1 \\vee \\ldots \\vee x_n $$
+
+    which can be produced by the formula:
+
+    $$ \\left(\\lnot z \\vee \\bigvee_{i=1}^n x_i\\right) \\wedge \\bigwedge_{i=1}^n \\left( z \\vee \\lnot x_i \\right)   $$
+
+    In Haskell:
+
+    > All [ 
+    >       Some [z, notB x1), 
+    >       ...
+    >       Some [z, notB xn),
+    >       Some [notB z, x1, ... , xn]
+    >   ]
+
+    The function changes the State of the transformator to add @z@ and its definition 
+    to the helper variables.
+-}
 litOfOr :: Ord v => [Lit (Var v)] -> Trans v (Lit (Var v))
 litOfOr [l] = return l
 litOfOr ds = do
@@ -427,7 +544,25 @@ litOfOr ds = do
     addClause $ Or $ neg x : ds
     return x
 
--- | Convert an exclusive or of two Lits to a single Lit. The function does that by the definition z <->* x1 ++* ... ++* xn 
+{- |Returns a variable, which is equivalent to:
+
+    /An odd number of literals in the given list are @True@./ 
+
+    If the list of literals has a length of 2 or greater, the function does is by the definition:    
+ 
+    $$ z \\leftrightarrow x_1 \\oplus \\ldots \\oplus x_n $$
+
+    which can be produced by the formula:
+
+    $$ \\lnot z \\oplus x_1 \\oplus \\ldots \\oplus x_n $$
+
+    In Haskell:
+
+    > Odd [ notB z, x1, ..., xn ]
+
+    The function changes the State of the transformator to add @z@ and its definition 
+    to the helper variables.
+-}
 litOfXor :: Ord v => Lit [Var v] -> Trans v (Lit (Var v))
 litOfXor (Pos [l]) = return $ Pos l
 litOfXor (Neg [l]) = return $ Neg l
@@ -437,7 +572,8 @@ litOfXor ds = do
     let defForPring = case ds of
             (Pos l)      -> map Pos l
             (Neg (x:xs)) -> Neg x : map Pos xs
-    addDefinition (extract z) (Odd $ map asLVar defForPring) -- Just for printing
+
+    addDefinition (extract z) (Odd $ map asLVar defForPring) -- Definitins are just for printing
     
     -- Define z <-> x1 ⊕ ... ⊕ xn 
     addClause $ XOr $ neg $ ((extract z:) <$> ds)

@@ -2,6 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 
+{- |This module support a bunch of functions, to show formulas and to get statistics. 
+    Very helpful for debugging and to increate perfromance. 
+-}
 module SAT.IPASIR.FormulaPrinting where
 
 import Data.List
@@ -21,23 +24,63 @@ import SAT.IPASIR.Literals
 import SAT.IPASIR.VarCache
 import SAT.IPASIR.Solver
 
-data TransformationStep = TSNormal | TSReduced | TSDemorgan | TSHelperDefs | TSHelperForm | TSXCNF | TSCNF
+{- |Represents the different transformation steps. See "SAT.IPASIR.Formula" to get more
+    information about the steps.
 
-foldFormula :: ( a -> GeneralFormula s v -> a) -> a -> GeneralFormula s v ->  a
-foldFormula f starter form = foldl (foldFormula f) next $ getInnerFormulas form
-    where
-        next = f starter form
+>+----+----------------+-------------------------------------------------------+
+>|Enum| Marker         | Description                                           |
+>+====+================+=======================================================+
+>| 0. | @TSNormal@     | The original formula.                                 |
+>+----+----------------+-------------------------------------------------------+
+>| 1. | @TSReduced@    | The formula after reduction. See 'rFormula'.          |
+>+----+----------------+-------------------------------------------------------+
+>| 2. | @TSDemorgan@   | The reduced formula after using the rules of          |
+>|    |                | De Morgan. See 'demorgan'.                            |
+>+----+----------------+-------------------------------------------------------+
+>| 3. | @TSXCNF@       | The XCNF of the formula. See 'formulaToNormalform'.   |
+>+----+----------------+-------------------------------------------------------+
+>| 4. | @TSHelperDefs@ | Same step as @TSXCNF@, but doesn't print clauses      |
+>|    |                | (or xclauses), which just define helper varianes.     |
+>|    |                | Its prints the definition of the helper variables     |
+>|    |                | instead.                                              |
+>+----+----------------+-------------------------------------------------------+
+>| 5. | @TSHelperForm@ | Same as @TSHelperDefs@, but it also prints the        |
+>|    |                | clauses, which define the helper variables.           |
+>+----+----------------+-------------------------------------------------------+
+>| 6. | @TSCNF@        | The CNF of the formula. See 'formulaToCNF'.           |
+>+----+----------------+-------------------------------------------------------+
+
+    The transformation of a formula passes \\( 0 \\to 1 \\to 2 \\to 3,4,5 \\to 6 \\). 
+
+    3, 4 and 5 represent the same transformation step.
+-}
+data TransformationStep = TSNormal 
+                        | TSReduced 
+                        | TSDemorgan 
+                        | TSXCNF 
+                        | TSHelperDefs 
+                        | TSHelperForm 
+                        | TSCNF
+                        deriving (Show, Eq, Read, Ord, Bounded, Enum)
+
+-- | True, iff the formula is a @Not@. 
 isNegation (Not _) = True
 isNegation _       = False
+
+-- | True, iff the formula is an @All@, @Some@ or @Odd@. 
 isList (All _)     = True
 isList (Some _)    = True
 isList (Odd _)     = True
 isList _           = False
-getInnerFormulas (Not f)   = [f]
-getInnerFormulas (All l)   = l
-getInnerFormulas (Some l)  = l
+
+-- | If the formula is a @Not@, @All@, @Some@ or @Odd@, it gives the inner formulas. Else an empty list. 
+getInnerFormulas (Not f)  = [f]
+getInnerFormulas (All l)  = l
+getInnerFormulas (Some l) = l
 getInnerFormulas (Odd l)  = l
-getInnerFormulas _         = []
+getInnerFormulas _        = []
+
+-- | Gives a representing text for the type of the formula. 
 showElem Yes       = "YES  "
 showElem No        = "NO   "
 showElem (All l)   = "ALL  "
@@ -48,11 +91,14 @@ showElem (Var x)   = show x
 showElem (PVar x)  = '+' : show x
 showElem (NVar x)  = '-' : show x
 
+-- | Four spaces. For real, its that simple.
 tab = "    "
 
+-- |Prints the text of 'showFormulaStatistics'.
 printFormulaStatistics :: (Ord v) => Formula v -> IO ()
 printFormulaStatistics = putStrLn . showFormulaStatistics
 
+-- |Gives a String with lots of information about the formula. 
 showFormulaStatistics :: (Ord v) => Formula v -> String
 showFormulaStatistics formula = "Incoming Formula:\n"                      ++ toText part1 ++ 
                                 "\nAfter Reduction:\n"                     ++ toText part2 ++ 
@@ -148,12 +194,15 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         isHorn :: [Lit v] -> Bool
         isHorn = (<=1) . length . filter sign
 
+-- |Prints the String of 'showFormulaTransformation'
 printFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> IO () 
 printFormulaTransformation s v = putStrLn $ showFormulaTransformation s v
 
+-- |Shows the formula after a given 'TransformationStep'.
 showFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> String
 showFormulaTransformation = showFormulaTransformation' (\i->"Helper"++show i)
 
+-- |Just important for the implementarion of the show functions. Might be hidden in later version.
 showFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> String
 showFormulaTransformation' showE TSNormal     formula = showFormula formula
 showFormulaTransformation' showE TSReduced    formula = showFormula $ rFormula formula
@@ -163,6 +212,7 @@ showFormulaTransformation' showE TSCNF        formula = showFormulaEither showE 
 showFormulaTransformation' showE TSHelperForm formula = showDefs' True  showE formula
 showFormulaTransformation' showE TSHelperDefs formula = showDefs' False showE formula
 
+-- |Super evil function. 
 showDefs' :: forall v. (Show v,Ord v) => Bool -> (Word -> String) -> Formula v -> String
 showDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
     where
@@ -211,22 +261,30 @@ showDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
                 (💩)                 = (<$>).(<$>).(<$>)
                 
 
+-- |Prints the String of 'showFormula'
 printFormula :: (Show v) => GeneralFormula s v -> IO ()
 printFormula = putStrLn . showFormula
 
+{- |Same as 
+
+    > showFormulaTransformation TSNormal
+-}
 showFormula :: (Show v) => GeneralFormula s v -> String
 showFormula = showFormula' tab showElem
 
-
+-- |Prints the String of 'showFormulaEither'
 printFormulaEither :: Show v => (Word -> String) -> GeneralFormula s (Var v) ->  IO ()
 printFormulaEither g f = putStrLn $ showFormulaEither g f
 
+{- |Prints a formula, which can have helper variables. The first parameter is a 
+    print function of the helper variables. -}
 showFormulaEither :: Show v => (Word -> String) -> GeneralFormula s (Var v) -> String
 showFormulaEither showHelper = showFormula' tab shower
     where
     --    show :: Formula (ELit v) -> String
         shower x = maybe (showElem x) (either showHelper show) (unpackVar x)
 
+-- |Just important for the implementarion of the show functions. Might be hidden in later version.
 showFormula' :: forall fo v s. String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> String
 showFormula' tab showFunction f
     | isList f     = showFunction f ++ listHelper (getInnerFormulas f)
