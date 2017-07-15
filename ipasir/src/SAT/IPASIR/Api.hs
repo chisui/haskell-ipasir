@@ -72,10 +72,10 @@ class Ipasir a where
 
     {- |Tells the solver to start solving. The returning value stands for
 
-            * @Just True@  - There is a model. You can read the model by using 'ipasirVal'.
-            * @Just False@ - Unsatisfiable. You can read the minimal conflict by using 'ipasirFailed'.
-            * @Nothing@    - Interrupted. This case shouldn't be possible with this haskell package, since we didn't
-              implement the @terminate@-function.
+        * @Just True@  - There is a model. You can read the model by using 'ipasirVal'.
+        * @Just False@ - Unsatisfiable. You can read the minimal conflict by using 'ipasirFailed'.
+        * @Nothing@    - Interrupted. This case shouldn't be possible with this haskell package, since we didn't
+          implement the @terminate@-function.
 
         >  Solve the formula with specified clauses under the specified assumptions.
         >  If the formula is satisfiable the function returns 10 and the state of the solver is changed to SAT.
@@ -93,9 +93,9 @@ class Ipasir a where
     {- | Can only be used if 'ipasirSolve' was aleady used and @Just True@ was the return value.
          This function returns the value of the given variable in the model.
         
-            * @Just (Pos _)@ - The variable is @True@
-            * @Just (Neg _)@ - The variable is @False@
-            * @Nothing     @ - The truth of the variable is not important for the solution.
+        * @Just (Pos _)@ - The variable is @True@
+        * @Just (Neg _)@ - The variable is @False@
+        * @Nothing     @ - The truth of the variable is not important for the solution.
 
         Warning: The header file @ipasir.h@ sais in the comment, that you get @-lit@, @0@ or @lit@.
         Some solver didn't implement it that way. They give @-1@, @0@ or @1@. We recommend you not

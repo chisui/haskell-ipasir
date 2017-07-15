@@ -18,7 +18,49 @@
     $$ \\varphi = cnf \\wedge \\bigwedge_{i=1}^{n} \\left( (\\lnot) \\bigoplus_{j=1}^{m_i} x_{i,j} \\right) $$
     where \\( cnf \\) is a CNF, \\( \\oplus \\) is the exclusive or. 
 -}
-module SAT.IPASIR.Formula where
+module SAT.IPASIR.Formula 
+    ( Formula
+    , RFormula
+    , DFormula
+    , Normal
+    , Reduced
+    , Demorganed
+    , Upper
+    , GeneralFormula (..)
+    , unpackVar
+    , isVar
+    , isTerminal
+    , asLVar
+    , asLit
+    , var
+    , (&&*)
+    , (||*)
+    , (++*)
+    , (->*)
+    , (<->*)
+    , FormulaOperation (..)
+    , Trans
+    , addDefinition
+    , freshLit
+    , addClause
+    , addClauses
+    , runTrans
+    , runTransComplete
+    , formulaToNormalform
+    , normalformToCNF
+    , formulaToCNF
+    , normalformToFormula
+    , partitionAll
+    , partitionSome
+    , partitionOdd
+    , lit2ELit
+    , transCnf
+    , transLit
+    , litOfNormalForm
+    , litOfAnd
+    , litOfOr
+    , litOfXor
+    ) where
 
 import Data.Bits
 import Data.Maybe
@@ -40,7 +82,6 @@ import SAT.IPASIR.Literals
 import SAT.IPASIR.Clauses
 import SAT.IPASIR.Solver (HasVariables(..))
 import SAT.IPASIR.VarCache
-
 
 -- | A normal formula of any form.
 type  Formula v = GeneralFormula Normal     v
@@ -347,7 +388,8 @@ runTransComplete :: VarCache v -> Trans v [Clause (Var v)] -> ([Clause (Var v)],
 runTransComplete cache trans = (mainCNF, newCache, cnfs, defs)
     where
         (mainCNF, (newCache, cnfs, defs) ) = runState trans (cache, [], [])
-        
+       
+
 -- -----------------------------------------------------------------------------
 
 -- | Transforms a formula into a XCNF. The 'VarCache' is used to create helper variables.
