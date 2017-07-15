@@ -64,16 +64,19 @@ data TransformationStep = TSNormal
                         deriving (Show, Eq, Read, Ord, Bounded, Enum)
 
 -- | True, iff the formula is a @Not@. 
+isNegation :: GeneralFormula t v -> Bool
 isNegation (Not _) = True
 isNegation _       = False
 
 -- | True, iff the formula is an @All@, @Some@ or @Odd@. 
+isList :: GeneralFormula t v -> Bool
 isList (All _)     = True
 isList (Some _)    = True
 isList (Odd _)     = True
 isList _           = False
 
 -- | If the formula is a @Not@, @All@, @Some@ or @Odd@, it gives the inner formulas. Else an empty list. 
+getInnerFormulas :: GeneralFormula t v -> [GeneralFormula t v] 
 getInnerFormulas (Not f)  = [f]
 getInnerFormulas (All l)  = l
 getInnerFormulas (Some l) = l
@@ -81,6 +84,7 @@ getInnerFormulas (Odd l)  = l
 getInnerFormulas _        = []
 
 -- | Gives a representing text for the type of the formula. 
+showElem :: Show v => GeneralFormula t v -> String 
 showElem Yes       = "YES  "
 showElem No        = "NO   "
 showElem (All l)   = "ALL  "
@@ -92,13 +96,14 @@ showElem (PVar x)  = '+' : show x
 showElem (NVar x)  = '-' : show x
 
 -- | Four spaces. For real, its that simple.
-tab = "    "
+tab = "    " :: String
 
 -- |Prints the text of 'showFormulaStatistics'.
 printFormulaStatistics :: (Ord v) => Formula v -> IO ()
 printFormulaStatistics = putStrLn . showFormulaStatistics
 
--- |Gives a String with lots of information about the formula. 
+-- |Gives a String with lots of informations about the formula. This includes number of variables
+--  after every transformation step, the number and length of clauses and more.
 showFormulaStatistics :: (Ord v) => Formula v -> String
 showFormulaStatistics formula = "Incoming Formula:\n"                      ++ toText part1 ++ 
                                 "\nAfter Reduction:\n"                     ++ toText part2 ++ 
@@ -202,7 +207,7 @@ printFormulaTransformation s v = putStrLn $ showFormulaTransformation s v
 showFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> String
 showFormulaTransformation = showFormulaTransformation' (\i->"Helper"++show i)
 
--- |Just important for the implementarion of the show functions. Might be hidden in later version.
+-- |Almost the same as 'showFormulaTransformation', but you can give your own show function for the helper variables.
 showFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> String
 showFormulaTransformation' showE TSNormal     formula = showFormula formula
 showFormulaTransformation' showE TSReduced    formula = showFormula $ rFormula formula
@@ -212,7 +217,7 @@ showFormulaTransformation' showE TSCNF        formula = showFormulaEither showE 
 showFormulaTransformation' showE TSHelperForm formula = showDefs' True  showE formula
 showFormulaTransformation' showE TSHelperDefs formula = showDefs' False showE formula
 
--- |Super evil function. 
+-- |Super evil function. Please dont look at it. 
 showDefs' :: forall v. (Show v,Ord v) => Bool -> (Word -> String) -> Formula v -> String
 showDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
     where
@@ -261,7 +266,7 @@ showDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
                 (💩)                 = (<$>).(<$>).(<$>)
                 
 
--- |Prints the String of 'showFormula'
+-- |Prints the String of 'showFormula'.
 printFormula :: (Show v) => GeneralFormula s v -> IO ()
 printFormula = putStrLn . showFormula
 
@@ -277,7 +282,7 @@ printFormulaEither :: Show v => (Word -> String) -> GeneralFormula s (Var v) -> 
 printFormulaEither g f = putStrLn $ showFormulaEither g f
 
 {- |Prints a formula, which can have helper variables. The first parameter is a 
-    print function of the helper variables. -}
+    print function for the helper variables. -}
 showFormulaEither :: Show v => (Word -> String) -> GeneralFormula s (Var v) -> String
 showFormulaEither showHelper = showFormula' tab shower
     where
@@ -285,13 +290,12 @@ showFormulaEither showHelper = showFormula' tab shower
         shower x = maybe (showElem x) (either showHelper show) (unpackVar x)
 
 -- |Just important for the implementarion of the show functions. Might be hidden in later version.
-showFormula' :: forall fo v s. String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> String
+showFormula' :: String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> String
 showFormula' tab showFunction f
     | isList f     = showFunction f ++ listHelper (getInnerFormulas f)
     | isNegation f = showFunction f ++ showFormula' tab showFunction (head $ getInnerFormulas f)
     | isTerminal f = showFunction f
         where
-    --        listHelper :: [f v] -> String
             listHelper list
                 | allLits = "[" ++ concat lines ++ tab ++ "]"
                 | otherwise   = "[\n" ++ intercalate "\n" lines ++ "\n]"

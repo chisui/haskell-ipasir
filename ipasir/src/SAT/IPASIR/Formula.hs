@@ -6,6 +6,18 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 
+{- |This module provides
+
+        1. The definition of propositional formulas (or formula to be short). 
+        2. Transformation functions for formulas. You can also transform them into CNF and XCNF.
+
+    Definition of CNF: Every propositional formula of the form 
+    $$ \\varphi = \\bigwedge_{i=1}^{n} \\bigvee_{j=1}^{m_i} (\\lnot) x_{i,j} $$
+
+    Definition of XCNF: Every propositional formula of the form 
+    $$ \\varphi = cnf \\wedge \\bigwedge_{i=1}^{n} \\left( (\\lnot) \\bigoplus_{j=1}^{m_i} x_{i,j} \\right) $$
+    where \\( cnf \\) is a CNF, \\( \\oplus \\) is the exclusive or. 
+-}
 module SAT.IPASIR.Formula where
 
 import Data.Bits
@@ -30,32 +42,42 @@ import SAT.IPASIR.Solver (HasVariables(..))
 import SAT.IPASIR.VarCache
 
 
--- | A normal formula of any form
+-- | A normal formula of any form.
 type  Formula v = GeneralFormula Normal     v
--- | A formula after constants are eliminated
+
+{- | A formula after constants ('Yes' and 'No') are eliminated.
+
+     And where every 'All', 'Some' and 'Odd' consists of 2 elements or more.
+     (this is not checked by the type system, but 'rFormula' creates it correct from a 'Formula').
+-}
 type RFormula v = GeneralFormula Reduced    v
--- | A formula after De Morgan's laws was applied
+
+{- | A formula after reducing (remove constants) and applying De Morgan's laws.
+
+     And where every 'All', 'Some' and 'Odd' consists of 2 elements or more.
+     (This is not checked by the type system, but 'demorgan' creates it correct from a 'Formula').
+-}
 type DFormula v = GeneralFormula Demorganed v
 
--- | Label for a normal formula of any form
+-- | Label for a normal formula of any form. See 'Formula'.
 data Normal
--- | Label for a formula after constants are eliminated
+-- | Label for a formula after constants are eliminated. See 'RFormula'.
 data Reduced
--- | Label for a formula after De Morgan's laws was applied
+-- | Label for a formula after De Morgan's laws was applied. See 'DFormula'.
 data Demorganed
 
--- | class of labels that may contain @Not@ or @Var@
+-- | class of labels that may contain @Not@ or @Var@. This includes 'Formula' and 'RFormula' but not 'DFormula'
 class Upper a where
 instance Upper Normal where
 instance Upper Reduced where
 
--- | A Formula that combines @Normal@, @Reduced@ and @Demorganed@ formulas.
+-- | A Formula that combines @Normal@, @Reduced@ and @Demorganed@ formulas
 data GeneralFormula s v where 
     -- | A variable.
     Var  :: Upper s => v -> GeneralFormula s v
-    -- | A Positive variable.
+    -- | A positive literal.
     PVar :: v -> GeneralFormula Demorganed v
-    -- | A Negative variable.
+    -- | A negative literal.
     NVar :: v -> GeneralFormula Demorganed v
     -- | The formula @True@.
     Yes  :: GeneralFormula Normal v
@@ -117,18 +139,18 @@ unpackVar _        = Nothing
 isVar :: GeneralFormula s v -> Bool
 isVar = isJust . unpackVar
 
--- | Checks if a formual is a leaf. This includes variables, @Yes@ and @No@.
+-- | Checks if a formula is a leaf. This includes variables, @Yes@ and @No@.
 isTerminal :: GeneralFormula s v -> Bool
 isTerminal Yes = True
 isTerminal No  = True
 isTerminal f   = isVar f
 
--- | Transforms a literal into a leaf of a formula. This function is injective.
+-- | Transforms a literal into a leaf.
 asLVar :: Lit v -> DFormula v
 asLVar (Pos v) = PVar v
 asLVar (Neg v) = NVar v
 
--- | Inverse function of @asLVar@. Returns an error, iff it is not in the range of @asLVar@.
+-- | Inverse function of @asLVar@. Returns an error, iff it is not in the range of @asLVar@. This happens iff the formula is not a leaf.
 asLit :: DFormula v -> Lit v
 asLit (PVar v) = Pos v
 asLit (NVar v) = Neg v
@@ -179,6 +201,7 @@ infixl 3  ++*
 infixl 4  ->*
 infixl 5 <->*
 
+-- | Defines for the different formula steps ('Formula','RFormula','DFormula') some general operations.
 class (Foldable (GeneralFormula s), Traversable (GeneralFormula s)) => FormulaOperation s where
     -- | create a var
     makeVar :: v -> GeneralFormula s v
@@ -478,7 +501,7 @@ litOfNormalForm clauses = do
 
     /All literals of the given list are @True@./ 
 
-    If the list of literals has a length of 2 or greater, the function does is by the definition:    
+    If the list of literals has a length of 2 or greater, the function does it by the definition:    
  
     $$ z \\leftrightarrow x_1 \\vee \\ldots \\vee x_n $$
 
@@ -514,7 +537,7 @@ litOfAnd ds = do
 
     /One literal of the given list is @True@./ 
 
-    If the list of literals has a length of 2 or greater, the function does is by the definition:    
+    If the list of literals has a length of 2 or greater, the function does it by the definition:    
  
     $$ z \\leftrightarrow x_1 \\vee \\ldots \\vee x_n $$
 
@@ -548,7 +571,7 @@ litOfOr ds = do
 
     /An odd number of literals in the given list are @True@./ 
 
-    If the list of literals has a length of 2 or greater, the function does is by the definition:    
+    If the list of literals has a length of 2 or greater, the function does it by the definition:    
  
     $$ z \\leftrightarrow x_1 \\oplus \\ldots \\oplus x_n $$
 
