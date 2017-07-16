@@ -59,8 +59,6 @@ $$
 respectivly
 
 $$\\lnot\\bigoplus_{i=1}^{n}x_{i}\\equiv\\lnot x_{n}\\oplus\\bigoplus_{i=1}^{n-1}x_{i}\\equiv\\left(x_{n}\\vee\\bigoplus_{i=1}^{n-1}x_{i}\\right)\\wedge\\left(\\lnot x_{n}\\vee\\lnot\\bigoplus_{i=1}^{n-1}x_{i}\\right)$$
-
-
 -}
 oddToCNF' :: Bool -> Int -> [[Bool]]
 oddToCNF' False 0 = [[]]

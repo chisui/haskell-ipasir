@@ -13,20 +13,21 @@
 {-# LANGUAGE ExistentialQuantification #-}
 module SAT.IPASIR.Solver where
 
+import System.IO.Unsafe
+
 import Control.Monad
-import Data.Functor.Identity
 import Control.Monad.Loops
 import Control.Comonad
-import System.IO.Unsafe
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Class
-import Data.Monoid
 import Control.Lens
-import Data.Kind
 
+import Data.Bifunctor
 import Data.Either
 import Data.Maybe
 import Data.Proxy
+import Data.Kind
+import Data.Monoid
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -108,6 +109,9 @@ class (MSolver s) => Solver s where
     solve m c = runIdentity $ unsafePerformIO $ runSolver m $ do
         addClauses c
         mSolve
+
+    solve_ :: (Clauses s c, v ~ VariableType c, Ord v) => Proxy (s v) -> c -> Either (Conflict v) (Map.Map v Bool)
+    solve_ m c = second (withoutHelpers . head . expandSolution) $ solve m c
 
     solveAllForVars' :: (Ord v, Clauses s c, VariableType c ~ v) => Proxy (s v) -> c -> [Var v] -> (Conflict v, [Solution v])
     solveAllForVars' m c ls = runIdentity $ unsafePerformIO $ runSolver m $ do
