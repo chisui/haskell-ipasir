@@ -20,6 +20,7 @@ import Data.Word
 import Data.Int
 
 import SAT.IPASIR
+import SAT.IPASIR.Literals as Export
 import qualified SAT.PseudoBoolean.C as C
 import SAT.PseudoBoolean.Config as Export
 import SAT.PseudoBoolean.C.Types.WeightedLit as Export

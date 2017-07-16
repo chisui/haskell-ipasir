@@ -1,0 +1,10 @@
+prefix=/home/tirreg/.Win7.V2/haskell-ipasir/pb-lib/pblib
+includedir=${prefix}
+libdir=${prefix}/lib
+
+Name: pblib
+Description: pblib
+Version: 1.0.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lpblib
+

@@ -3,6 +3,7 @@ module SAT.IPASIR
     ) where
 
 import SAT.IPASIR.Solver as Export
+import SAT.IPASIR.Literals as Export
 import SAT.IPASIR.VarCache as Export
     ( Var
     , VarCache

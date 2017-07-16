@@ -42,7 +42,7 @@ partitionClauses _ ((XOr x):xs)
         vars = extract x
         transform :: [v] -> Maybe [Lit v]
         transform []  = Just []
-        transform [a] = Just [ const a <$> (fromBool $ sign x) ]
+        transform [a] = Just [ const a <$> (fromBool $ isPositive x) ]
         transform _   = Nothing
         
 {- |Generates a CNF, which is equivalent to a xclause. The First parameter tells if the 
@@ -75,7 +75,7 @@ oddToCNF' positive numberVars = map (False:) positives ++ map (True:) negatives
 oddToCNF :: XOrClause a -> CNF a
 oddToCNF xclause = map (zipWith (\v b -> const v <$> fromBool b) vars) bClauses
     where
-        bClauses  = oddToCNF' (sign xclause) $ length $ vars
+        bClauses  = oddToCNF' (isPositive xclause) $ length $ vars
         vars      = extract xclause
 
 -- |Uses 'oddToCNF' and concatenate the results. That means the resulting CNF has the same table of truth

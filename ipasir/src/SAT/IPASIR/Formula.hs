@@ -511,7 +511,7 @@ transCnf (Odd l) = do
     let (lits, complexStuff) = partitionOdd l
     helpers <- mapM transLit complexStuff
     let lits' = map lit2ELit lits ++ helpers
-    let s     = foldl xor True $ map (not.sign) lits'
+    let s     = foldl xor True $ map (not.isPositive) lits'
     return [XOr $ (const (map extract lits') <$> fromBool s)]
 
 {- |Returns a variable, which is equivalent to:

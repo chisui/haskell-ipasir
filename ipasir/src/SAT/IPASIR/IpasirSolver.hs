@@ -123,7 +123,7 @@ mSolveInt (IpasirSolver s vc) = do
     sol <- ipasirSolve s
     case sol of
         Nothing -> error "solving interrupted"
-        (Just True) -> Right <$> makeSolution ( ((sign <$>) <$> ) . (`ipasirVal` s))
+        (Just True) -> Right <$> makeSolution ( ((isPositive <$>) <$> ) . (`ipasirVal` s))
         (Just False) -> Left <$> makeConflict (`ipasirFailed` s)
     where
         makeConflict :: (Word -> IO Bool) -> IO (Set.Set Word)

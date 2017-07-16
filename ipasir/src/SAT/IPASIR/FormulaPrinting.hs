@@ -197,7 +197,7 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
                 clauses = filter ((==clauseLength).length) allClauses
                 
         isHorn :: [Lit v] -> Bool
-        isHorn = (<=1) . length . filter sign
+        isHorn = (<=1) . length . filter isPositive
 
 -- |Prints the String of 'showFormulaTransformation'
 printFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> IO () 

@@ -17,6 +17,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
 
 import SAT.IPASIR
+import SAT.IPASIR.Api
 
 import SAT.PseudoBoolean
 import qualified SAT.PseudoBoolean.C as C
@@ -49,7 +50,7 @@ instance (C.CardinalityMethod c, Ord v, Ipasir i) => Clauses (IpasirSolver i) (P
                     asLit :: (Lit v, Integer) -> WeightedLit
                     asLit (v, i) = lit $-$ fromInteger i
                         where
-                            lit = toInt $ varToInt cache . Right <$> v
+                            lit = fromEnum $ varToInt cache . Right <$> v
 
 
 cardinalitySolving :: forall s v c m. (Show v, MSolver s, Ord v, C.CardinalityMethod c, Clauses s [[Lit v]], VariableType [[Lit v]] ~ v, Monad m, Traversable m) => 

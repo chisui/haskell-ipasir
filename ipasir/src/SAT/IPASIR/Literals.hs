@@ -11,8 +11,7 @@ module SAT.IPASIR.Literals
     , lit
     , fromBool
     , neg
-    , sign
-    , toInt
+    , isPositive
     ) where
 
 import Data.String (IsString(..))
@@ -33,7 +32,7 @@ data Lit a
 instance (Ord a) => Ord (Lit a) where
     compare x y = shim x `compare` shim y
         where
-            shim l = (extract l, sign l)
+            shim l = (extract l, isPositive l)
 
 instance Foldable Lit where
     foldMap f = f . extract
@@ -48,7 +47,7 @@ instance Applicative Lit where
 instance Monad Lit where
     l >>= f = s `lit` extract l'
         where
-            s = sign l `xor` sign l'
+            s = isPositive l `xor` isPositive l'
             l' = f $ extract l
 
 instance Comonad Lit where
@@ -79,19 +78,24 @@ neg :: Lit a -> Lit a
 neg (Pos a) = Neg a
 neg (Neg a) = Pos a
 
--- | Get the sign of a Literal
-sign :: Lit a -> Bool
-sign (Pos _) = True
-sign (Neg _) = False
+-- | Get the sign of a Literal (True for positive)
+isPositive :: Lit a -> Bool
+isPositive (Pos _) = True
+isPositive (Neg _) = False
 
--- | Coerces a @Literal@ of a @Num@ @n@ to a signed @Int@ where the sign is the literals sign.
--- for this to work @n > 0@ has to hold.
-toInt :: (Ord a, Integral a, Show a) => Lit a -> Int
-toInt l = s * let n = extract l in
-        if n > 0
-            then fromEnum $ toInteger n
-            else error $ "can not coerce Literals with numbers <= 0 to Int: " ++ show n
-    where
-        s = if sign l
-            then 1
-            else -1
+
+instance (Enum a) => Enum (Lit a) where
+    -- | Coerces a @Literal@ of a @Num@ @n@ to a signed @Int@ where the sign is the literals sign.
+    -- for this to work @n > 0@ has to hold.
+    fromEnum l = s * let n = fromEnum $ extract l in
+            if n > 0
+                then fromEnum n
+                else error $ "can not coerce Literals with numbers <= 0 to Int"
+        where
+            s = if isPositive l
+                then 1
+                else -1
+
+    toEnum 0 = error "Can't transform 0 into a Lit. (function toEnum)."
+    toEnum x = lit (x>0) (toEnum $ abs x)
+

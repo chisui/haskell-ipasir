@@ -94,7 +94,7 @@ weightedLits = map (\(v, i) -> v $-$ fromInteger i) . Map.toList . unwrappedVars
 unwrappedVars :: (C.CardinalityMethod c, Ord v) => PBConstraint c v -> Map.Map Int Integer
 unwrappedVars c = Map.fromList $ zipWith toVar [1..] lits
     where
-        toVar i (v, w) = (I.toInt (i <$ v), w)
+        toVar i (v, w) = (fromEnum (i <$ v), w)
         lits = sortOn fst $ Map.toList $ vars c
 
 cn :: (Enum a, Enum b) => a -> b

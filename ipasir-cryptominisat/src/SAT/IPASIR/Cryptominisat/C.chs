@@ -73,7 +73,7 @@ cryptoAddXorClause clause = withCS addXorInternal
             Vec.unsafeWith vector $ \ vecPtr -> do
                 let size = toEnum $ fromEnum $ length $ extract clause
                 {#call unsafe crypto_add_xor_clause #} solverPtr (castPtr vecPtr) size s
-        s = toEnum $ fromEnum $ sign clause
+        s = toEnum $ fromEnum $ isPositive clause
 
 lit2int (Pos a) = toEnum $   fromEnum a
 lit2int (Neg a) = toEnum $ -(fromEnum a)

@@ -27,9 +27,7 @@ library
   Includes:            c-sources/ipasir.h
                      , c-sources/cryptominisat_bindings.h
   c-sources:           c-sources/cryptominisat_bindings.c
-  Extra-libraries:     ipasircryptominisat5
-                     , cryptominisat5
-                     , stdc++
+  Extra-libraries:     stdc++
 
   exposed-modules:     SAT.IPASIR.Cryptominisat
                      , SAT.IPASIR.Cryptominisat.C
@@ -41,6 +39,8 @@ library
                      , transformers
   default-language:    Haskell2010
   ghc-options:         -static -optl-static
+  pkgconfig-depends:   ipasircryptominisat5
+                     , cryptominisat5
 
 test-suite ipasir-cryptominisat-test
   type:                exitcode-stdio-1.0

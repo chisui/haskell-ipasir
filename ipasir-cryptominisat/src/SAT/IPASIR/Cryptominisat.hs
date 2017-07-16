@@ -17,6 +17,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
 
 import SAT.IPASIR
+import SAT.IPASIR.Api
 import SAT.IPASIR.Cryptominisat.C
 
 
