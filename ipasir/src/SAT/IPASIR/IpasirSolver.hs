@@ -66,7 +66,7 @@ instance Ipasir i => MSolver (IpasirSolver i) where
                     solve' (Left conflict) = return (conflict, [])
                     solve' (Right sol) = do
                         let clause = mapMaybe (extract sol) ints
-                        ipasirAddClause clause i
+                        ipasirAddClause i clause
                         (conflict, sols) <- solve' =<< mSolveInt s
                         return (conflict, sol:sols)
                     extract :: ISolution Word -> Word -> Maybe (Lit Word)
@@ -92,7 +92,7 @@ mSolveAllForVars' ls = do
                 solve' (Left conflict) = return (conflict, [])
                 solve' (Right sol) = do
                     let clause = mapMaybe (extract sol) ints
-                    ipasirAddClause clause i
+                    ipasirAddClause i clause
                     (conflict, sols) <- solve' =<< mSolveInt s
                     return (conflict, sol:sols)
                 extract :: ISolution Word -> Word -> Maybe (Lit Word)
@@ -118,7 +118,7 @@ instance (Ord v, Ipasir i) => Clauses (IpasirSolver i) [[Lit v]] where
         return ()
         where
             addClauses' (IpasirSolver solver cache) = do
-                ipasirAddClauses intClauses solver
+                ipasirAddClauses solver intClauses
                 return $ IpasirSolver solver cache'
                 where
                     intClauses :: [[Lit Word]]
@@ -139,8 +139,8 @@ mSolveInt (IpasirSolver s vc) = do
     sol <- ipasirSolve s
     case sol of
         Nothing -> error "solving interrupted"
-        (Just True) -> Right <$> makeSolution ( ((sign <$>) <$> ) . (`ipasirVal` s))
-        (Just False) -> Left <$> makeConflict (`ipasirFailed` s)
+        (Just True) -> Right <$> makeSolution ( ((sign <$>) <$> ) . ipasirVal s)
+        (Just False) -> Left <$> makeConflict (ipasirFailed s)
     where
         makeConflict :: (Word -> IO Bool) -> IO (Set.Set Word)
         makeConflict ioOp = Map.keysSet . Map.filter id <$> makeSolution ioOp

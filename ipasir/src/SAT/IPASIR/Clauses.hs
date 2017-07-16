@@ -47,8 +47,8 @@ oddToCNF' positive numberVars = map (False:) positives ++ map (True:) negatives
 oddToCNF :: Lit [a] -> [[Lit a]]
 oddToCNF xclause = map (zipWith (\v b -> const v <$> fromBool b) vars) bClauses
     where
-        bClauses  = oddToCNF' (sign xclause) $ length $ vars
+        bClauses  = oddToCNF' (sign xclause) $ length vars
         vars      = extract xclause
 
 xclausesToCNF :: [Lit [a]] -> [[Lit a]]
-xclausesToCNF = concat . map oddToCNF
+xclausesToCNF = concatMap oddToCNF
