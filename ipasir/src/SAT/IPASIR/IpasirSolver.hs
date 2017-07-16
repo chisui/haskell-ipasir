@@ -79,7 +79,7 @@ instance Ipasir i => MSolver (IpasirSolver i) where
                     sign' True = -1
                     sign' False = 1
 
-<<<<<<< HEAD
+
 mSolveAllForVars' :: forall v m i. (Ord v, Traversable m, Ipasir i) => [Var v] -> StateT (m (IpasirSolver i v)) IO (m (Conflict v, [Solution v]))
 mSolveAllForVars' ls = do
     solvers <- get
@@ -106,8 +106,6 @@ mSolveAllForVars' ls = do
                 sign' True = -1
                 sign' False = 1
 
-=======
->>>>>>> 91231f9bce77073b6ca8fa2b43730b2bc121f71a
 instance Ipasir i => Solver (IpasirSolver i) where
 
 instance Ord v => HasVariables [[Lit v]] where
