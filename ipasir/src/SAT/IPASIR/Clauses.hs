@@ -75,11 +75,10 @@ oddToCNF' positive numberVars = map (False:) positives ++ map (True:) negatives
 oddToCNF :: XOrClause a -> CNF a
 oddToCNF xclause = map (zipWith (\v b -> const v <$> fromBool b) vars) bClauses
     where
-        bClauses  = oddToCNF' (isPositive xclause) $ length $ vars
+        bClauses  = oddToCNF' (isPositive xclause) $ length vars
         vars      = extract xclause
 
 -- |Uses 'oddToCNF' and concatenate the results. That means the resulting CNF has the same table of truth
 --  as the cunjucntion of all xclauses. 
-
 xclausesToCNF :: [XOrClause a] -> CNF a
-xclausesToCNF = concat . map oddToCNF
+xclausesToCNF = concatMap oddToCNF
