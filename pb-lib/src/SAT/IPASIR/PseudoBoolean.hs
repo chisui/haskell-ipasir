@@ -40,7 +40,7 @@ instance (C.CardinalityMethod c, Ord v, Ipasir i) => Clauses (IpasirSolver i) (P
             addClauses' (IpasirSolver solver cache) = do
                 rawClauses <- evalEncoder (pbConfig c) weightedLits (comp c) (cn $ lower c) (cn $ upper c) nVars getClauses
                 let (intClauses, cache') = toClauses cache rawClauses
-                ipasirAddClauses intClauses solver
+                ipasirAddClauses solver intClauses
                 return (IpasirSolver solver cache')
                 where
                     cn = toEnum . fromEnum

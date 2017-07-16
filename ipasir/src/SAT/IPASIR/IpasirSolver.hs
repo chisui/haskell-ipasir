@@ -150,13 +150,8 @@ mSolveInt (IpasirSolver s vc) = do
     sol <- ipasirSolve s
     case sol of
         Nothing -> error "solving interrupted"
-<<<<<<< HEAD
-        (Just True) -> Right <$> makeSolution ( ((isPositive <$>) <$> ) . (`ipasirVal` s))
-        (Just False) -> Left <$> makeConflict (`ipasirFailed` s)
-=======
-        (Just True) -> Right <$> makeSolution ( ((sign <$>) <$> ) . ipasirVal s)
+        (Just True) -> Right <$> makeSolution ( ((isPositive <$>) <$> ) . ipasirVal s)
         (Just False) -> Left <$> makeConflict (ipasirFailed s)
->>>>>>> 3f90071501902220e3a817bb3b3af1fee72f2f20
     where
         makeConflict :: (Word -> IO Bool) -> IO (Set.Set Word)
         makeConflict ioOp = Map.keysSet . Map.filter id <$> makeSolution ioOp
