@@ -6,7 +6,14 @@
 -- | This module provides a type of literals. 
 
 {-# LANGUAGE DeriveFunctor #-}
-module SAT.IPASIR.Literals where
+module SAT.IPASIR.Literals
+    ( Lit (..)
+    , lit
+    , fromBool
+    , neg
+    , sign
+    , toInt
+    ) where
 
 import Data.String (IsString(..))
 import Data.Bits (xor)

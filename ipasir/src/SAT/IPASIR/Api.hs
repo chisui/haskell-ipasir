@@ -1,7 +1,7 @@
-{-# LANGUAGE TypeFamilies #-}
 module SAT.IPASIR.Api
     ( Ipasir(..)
     ) where
+
 
 import Control.Monad
 

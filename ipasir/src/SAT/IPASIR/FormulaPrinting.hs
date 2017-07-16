@@ -2,6 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 
+{- |This module support a bunch of functions, to show formulas and to get statistics. 
+    Very helpful for debugging and to increate perfromance. 
+-}
 module SAT.IPASIR.FormulaPrinting where
 
 import Data.List
@@ -21,38 +24,67 @@ import SAT.IPASIR.Literals
 import SAT.IPASIR.VarCache
 import SAT.IPASIR.Solver
 
-tester1 = Var 1 &&* Not (Var 2) &&* (Var 1 ||* Var 2) :: Formula Int
-tester2 = Var 1 &&* Var 2 &&* (Var 1 ->* Var 2) &&* Not (Var 2 ->* Var 1) :: Formula Int
-tester3 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 &&* Var 4) ->* Var 3) ):: Formula Int
-tester4 = Var 1 &&* Var 2 &&* (Var 1 ->* Not ((Var 6 <->* Var 4) ->* Var 3) ):: Formula Int
-tester5 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* Var 2)):: Formula Int
-tester6 = Var 1 &&* ( Not (Var 2) ||* (Var 1 &&* No)):: Formula Int
-tester7 = Not $ Odd $ map Var "ab"  :: Formula Char
-tester8 = Odd $ map Var "abc" :: Formula Char
-tester9 = Odd [ Not $ Var 'a', Not $ Var 'b', Not $Var 'c'] :: Formula Char
-tester0 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', All [Var 'a',Var 'b']]) ] ) :: Formula Char
-tester10 = Not ( Some [ Some [ No ] , Var 'a', Odd [Var 'a', Var 'b'], Not (All [ Var 'b'] ), Not (Some [ Var 'a', Odd [Var 'a', Some [All [Var 'x', Var 'c'], Var 'c']]]) ] ) 
+{- |Represents the different transformation steps. See "SAT.IPASIR.Formula" to get more
+    information about the steps.
 
-tester11 = Some [Odd [Some [Var 3, Var 4], Var 2],  Var 1] :: Formula Int
-tester12 = Some [Odd [Some [Var 3, Var 4], Var 2],  Odd [Some [Var 3, Var 4], Var 2]] :: Formula Int
+>+----+----------------+-------------------------------------------------------+
+>|Enum| Marker         | Description                                           |
+>+====+================+=======================================================+
+>| 0. | @TSNormal@     | The original formula.                                 |
+>+----+----------------+-------------------------------------------------------+
+>| 1. | @TSReduced@    | The formula after reduction. See 'rFormula'.          |
+>+----+----------------+-------------------------------------------------------+
+>| 2. | @TSDemorgan@   | The reduced formula after using the rules of          |
+>|    |                | De Morgan. See 'demorgan'.                            |
+>+----+----------------+-------------------------------------------------------+
+>| 3. | @TSXCNF@       | The XCNF of the formula. See 'formulaToNormalform'.   |
+>+----+----------------+-------------------------------------------------------+
+>| 4. | @TSHelperDefs@ | Same step as @TSXCNF@, but doesn't print clauses      |
+>|    |                | (or xclauses), which just define helper varianes.     |
+>|    |                | Its prints the definition of the helper variables     |
+>|    |                | instead.                                              |
+>+----+----------------+-------------------------------------------------------+
+>| 5. | @TSHelperForm@ | Same as @TSHelperDefs@, but it also prints the        |
+>|    |                | clauses, which define the helper variables.           |
+>+----+----------------+-------------------------------------------------------+
+>| 6. | @TSCNF@        | The CNF of the formula. See 'formulaToCNF'.           |
+>+----+----------------+-------------------------------------------------------+
 
-data TransformationStep = TSNormal | TSReduced | TSDemorgan | TSHelperDefs | TSHelperForm | TSXCNF | TSCNF
+    The transformation of a formula passes \\( 0 \\to 1 \\to 2 \\to 3,4,5 \\to 6 \\). 
 
-foldFormula :: ( a -> GeneralFormula s v -> a) -> a -> GeneralFormula s v ->  a
-foldFormula f starter form = foldl (foldFormula f) next $ getInnerFormulas form
-    where
-        next = f starter form
+    3, 4 and 5 represent the same transformation step.
+-}
+data TransformationStep = TSNormal 
+                        | TSReduced 
+                        | TSDemorgan 
+                        | TSXCNF 
+                        | TSHelperDefs 
+                        | TSHelperForm 
+                        | TSCNF
+                        deriving (Show, Eq, Read, Ord, Bounded, Enum)
+
+-- | True, iff the formula is a @Not@. 
+isNegation :: GeneralFormula t v -> Bool
 isNegation (Not _) = True
 isNegation _       = False
+
+-- | True, iff the formula is an @All@, @Some@ or @Odd@. 
+isList :: GeneralFormula t v -> Bool
 isList (All _)     = True
 isList (Some _)    = True
 isList (Odd _)     = True
 isList _           = False
-getInnerFormulas (Not f)   = [f]
-getInnerFormulas (All l)   = l
-getInnerFormulas (Some l)  = l
+
+-- | If the formula is a @Not@, @All@, @Some@ or @Odd@, it gives the inner formulas. Else an empty list. 
+getInnerFormulas :: GeneralFormula t v -> [GeneralFormula t v] 
+getInnerFormulas (Not f)  = [f]
+getInnerFormulas (All l)  = l
+getInnerFormulas (Some l) = l
 getInnerFormulas (Odd l)  = l
-getInnerFormulas _         = []
+getInnerFormulas _        = []
+
+-- | Gives a representing text for the type of the formula. 
+showElem :: Show v => GeneralFormula t v -> String 
 showElem Yes       = "YES  "
 showElem No        = "NO   "
 showElem (All l)   = "ALL  "
@@ -63,18 +95,15 @@ showElem (Var x)   = show x
 showElem (PVar x)  = '+' : show x
 showElem (NVar x)  = '-' : show x
 
-getVars :: GeneralFormula s v -> [v]
-getVars = foldFormula f []
-    where
-        f list form
-            | isVar form = (fromJust . unpackVar) form : list
-            | otherwise  = list
+-- | Four spaces. For real, its that simple.
+tab = "    " :: String
 
-tab = "    "
-
+-- |Prints the text of 'showFormulaStatistics'.
 printFormulaStatistics :: (Ord v) => Formula v -> IO ()
 printFormulaStatistics = putStrLn . showFormulaStatistics
 
+-- |Gives a String with lots of informations about the formula. This includes number of variables
+--  after every transformation step, the number and length of clauses and more.
 showFormulaStatistics :: (Ord v) => Formula v -> String
 showFormulaStatistics formula = "Incoming Formula:\n"                      ++ toText part1 ++ 
                                 "\nAfter Reduction:\n"                     ++ toText part2 ++ 
@@ -170,15 +199,15 @@ showFormulaStatistics formula = "Incoming Formula:\n"                      ++ to
         isHorn :: [Lit v] -> Bool
         isHorn = (<=1) . length . filter sign
 
+-- |Prints the String of 'showFormulaTransformation'
 printFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> IO () 
 printFormulaTransformation s v = putStrLn $ showFormulaTransformation s v
 
+-- |Shows the formula after a given 'TransformationStep'.
 showFormulaTransformation :: (Show v, Ord v) => TransformationStep -> Formula v -> String
 showFormulaTransformation = showFormulaTransformation' (\i->"Helper"++show i)
 
-printFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> IO () 
-printFormulaTransformation' f s v = putStrLn $ showFormulaTransformation' f s v
-
+-- |Almost the same as 'showFormulaTransformation', but you can give your own show function for the helper variables.
 showFormulaTransformation' :: forall v. (Show v,Ord v) => (Word -> String) -> TransformationStep -> Formula v -> String
 showFormulaTransformation' showE TSNormal     formula = showFormula formula
 showFormulaTransformation' showE TSReduced    formula = showFormula $ rFormula formula
@@ -188,6 +217,7 @@ showFormulaTransformation' showE TSCNF        formula = showFormulaEither showE 
 showFormulaTransformation' showE TSHelperForm formula = showDefs' True  showE formula
 showFormulaTransformation' showE TSHelperDefs formula = showDefs' False showE formula
 
+-- |Super evil function. Please dont look at it. 
 showDefs' :: forall v. (Show v,Ord v) => Bool -> (Word -> String) -> Formula v -> String
 showDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
     where
@@ -236,34 +266,36 @@ showDefs' withFormula showE formula = mainCNFString ++ concat helperStrings
                 (💩)                 = (<$>).(<$>).(<$>)
                 
 
-
+-- |Prints the String of 'showFormula'.
 printFormula :: (Show v) => GeneralFormula s v -> IO ()
 printFormula = putStrLn . showFormula
 
+{- |Same as 
+
+    > showFormulaTransformation TSNormal
+-}
 showFormula :: (Show v) => GeneralFormula s v -> String
 showFormula = showFormula' tab showElem
 
-
+-- |Prints the String of 'showFormulaEither'
 printFormulaEither :: Show v => (Word -> String) -> GeneralFormula s (Var v) ->  IO ()
 printFormulaEither g f = putStrLn $ showFormulaEither g f
 
+{- |Prints a formula, which can have helper variables. The first parameter is a 
+    print function for the helper variables. -}
 showFormulaEither :: Show v => (Word -> String) -> GeneralFormula s (Var v) -> String
 showFormulaEither showHelper = showFormula' tab shower
     where
     --    show :: Formula (ELit v) -> String
         shower x = maybe (showElem x) (either showHelper show) (unpackVar x)
 
-
-printFormula' :: forall fo v s. String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> IO ()
-printFormula' s g f = putStrLn $ showFormula' s g f
-
-showFormula' :: forall fo v s. String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> String
+-- |Just important for the implementarion of the show functions. Might be hidden in later version.
+showFormula' :: String -> (GeneralFormula s v -> String) -> GeneralFormula s v -> String
 showFormula' tab showFunction f
     | isList f     = showFunction f ++ listHelper (getInnerFormulas f)
     | isNegation f = showFunction f ++ showFormula' tab showFunction (head $ getInnerFormulas f)
     | isTerminal f = showFunction f
         where
-    --        listHelper :: [f v] -> String
             listHelper list
                 | allLits = "[" ++ concat lines ++ tab ++ "]"
                 | otherwise   = "[\n" ++ intercalate "\n" lines ++ "\n]"

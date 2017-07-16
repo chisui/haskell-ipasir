@@ -8,10 +8,9 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TupleSections #-}
-module SAT.IPASIR.IpasirSolver
-( IpasirSolver(..)
-, IpasirSolver(..)
-) where
+
+-- |This module implements the solve functions for IPASIR-solver (See "SAT.IPASIR.Api"). 
+module SAT.IPASIR.IpasirSolver where
 
 import Control.Comonad
 import Control.Monad.Trans.State.Lazy
@@ -29,6 +28,10 @@ import SAT.IPASIR.Solver
 import SAT.IPASIR.Literals
 import SAT.IPASIR.VarCache
 
+{- |Stands for a solver, which is implementing the IPASIR Api. See "SAT.IPASIR.Api". 
+    
+    @i@ is the solver, and @v@ the variable type.
+-}
 data IpasirSolver i v = IpasirSolver i (VarCache v)
 
 instance Ipasir i => MSolver (IpasirSolver i) where
@@ -76,6 +79,7 @@ instance Ipasir i => MSolver (IpasirSolver i) where
                     sign' True = -1
                     sign' False = 1
 
+<<<<<<< HEAD
 mSolveAllForVars' :: forall v m i. (Ord v, Traversable m, Ipasir i) => [Var v] -> StateT (m (IpasirSolver i v)) IO (m (Conflict v, [Solution v]))
 mSolveAllForVars' ls = do
     solvers <- get
@@ -102,6 +106,8 @@ mSolveAllForVars' ls = do
                 sign' True = -1
                 sign' False = 1
 
+=======
+>>>>>>> 91231f9bce77073b6ca8fa2b43730b2bc121f71a
 instance Ipasir i => Solver (IpasirSolver i) where
 
 instance Ord v => HasVariables [[Lit v]] where
@@ -127,13 +133,20 @@ instance (Ord v, Ipasir i) => Clauses (IpasirSolver i) [[Lit v]] where
                     cache' = snd $ newVars cache vars
                     (💩)=(<$>).(<$>).(<$>)
 
+-- |Transforms the solution of a solver (which is working on int) to the clauses type. 
+--  The 'VarCache' contains the definitions of the variables.
 mapLits :: Ord v => VarCache v -> Map.Map Word a -> Map.Map (Var v) a
 mapLits vc = Map.mapKeys (intToVar vc)
 
+-- |ISolution is comparable to 'Solution' but without helper variabes. 
 type ISolution v = Map.Map v Val
+-- |IConflict is comparable to 'Conflict' but without helper variabes. 
 type IConflict v = Set.Set v
+-- |IESolution is comparable to 'ESolution' but without helper variabes. 
 type IESolution v = Either (IConflict v) (ISolution v)
 
+-- | Same as 'mSolve' but without transforming the solution back into the variable type. 
+--   You get the 'Words' instead, which are the same as the variables of the solver.
 mSolveInt :: Ipasir i => IpasirSolver i v -> IO (IESolution Word)
 mSolveInt (IpasirSolver s vc) = do
     sol <- ipasirSolve s
