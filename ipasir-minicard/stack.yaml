@@ -1,0 +1,14 @@
+resolver: lts-8.11
+
+packages:
+- '.'
+
+ghc-options:
+    "*": -static -optl-static -threaded 
+    #-rtsopts -with-rtsopts=-N
+
+extra-lib-dirs:
+- lib/linux
+
+extra-include-dirs:
+- /usr/local/include/

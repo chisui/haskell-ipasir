@@ -1,0 +1,214 @@
+sqlite3                        SQLite - SQL database engine
+cryptominisat5                 cryptominisat5 - cryptominisat5
+python-3.4m                    Python - Python library
+pixman-1                       Pixman - The pixman library (version 1)
+iso-codes                      iso-codes - ISO country, language, script and currency codes and translations
+gmodule-export-2.0             GModule - Dynamic module loader for GLib
+xaw7                           Xaw - X Athena Widgets Library, version 7
+cairo-svg                      cairo-svg - SVG surface backend for cairo graphics library
+libdrm_intel                   libdrm_intel - Userspace interface to intel kernel DRM services
+lapack-netlib                  lapack - FORTRAN reference implementation of LAPACK Linear Algebra PACKage
+eigen3                         Eigen3 - A C++ template library for linear algebra: vectors, matrices, and related algorithms
+libpcreposix                   libpcreposix - PCREPosix - Posix compatible interface to libpcre
+cairo-tee                      cairo-tee - tee surface backend for cairo graphics library
+dri                            dri - Direct Rendering Infrastructure
+dbus-1                         dbus - Free desktop message bus
+gnome-icon-theme-symbolic      gnome-icon-theme-symbolic - A collection of symbolic icons used as the basis for GNOME themes
+lxpanel                        lxpanel - A lightweight X11 desktop panel
+libzmq                         libzmq - 0MQ c++ library
+fftw3                          FFTW - fast Fourier transform library
+xcb-render                     XCB Render - XCB Render Extension
+QtWebKit                       Qtwebkit - Qtwebkit Library
+udisks                         udisks - udisks storage daemon
+libcap                         libcap - libcap
+adwaita-icon-theme             gnome-icon-theme - A collection of icons used as the basis for GNOME themes
+libbsd                         libbsd - Utility functions from BSD systems
+cairo-png                      cairo-png - PNG functions for cairo graphics library
+systemd                        systemd - systemd System and Service Manager
+QtXml                          Qtxml - Qtxml Library
+xft                            Xft - X FreeType library
+pangoxft                       Pango Xft - Xft font support for Pango
+QtDBus                         Qtdbus - Qt DBus module
+xcursor                        Xcursor - X Cursor Library
+mobile-broadband-provider-info mobile-broadband-provider-info - Mobile Broadband Service Provider Information Database
+glu                            glu - Mesa OpenGL Utility library
+xtrans                         XTrans - Abstract network code for X
+gdk-pixbuf-2.0                 GdkPixbuf - Image loading and scaling
+xf86vidmodeproto               XF86VidModeProto - XF86VidMode extension headers
+QtScriptTools                  Qtscripttools - Qtscripttools Library
+lapack                         lapack - FORTRAN reference implementation of LAPACK Linear Algebra PACKage
+caca                           caca - Colour ASCII-Art library
+gnome-system-tools             gst - Gnome System Tools
+damageproto                    DamageProto - Damage extension headers
+QtDeclarative                  Qtdeclarative - Qtdeclarative Library
+libpulse                       libpulse - PulseAudio Client Interface
+directfb-internal              DirectFB-Internal - Third party module support package for DirectFB.
+gstreamer-1.0                  GStreamer - Streaming media framework
+kbproto                        KBProto - KB extension headers
+expat                          expat - expat XML parser
+cairo-xlib                     cairo-xlib - Xlib surface backend for cairo graphics library
+libavformat                    libavformat - Libav container format library
+uuid                           uuid - Universally unique id library
+valgrind                       Valgrind - A dynamic binary instrumentation framework
+fontutil                       FontUtil - Font utilities dirs
+xcb-dri2                       XCB DRI2 - XCB DRI2 Extension
+xcb-dri3                       XCB DRI3 - XCB DRI3 Extension
+panel                          panel - ncurses 5.9 add-on library
+gstreamer-net-1.0              GStreamer networking library - Network-enabled GStreamer plug-ins and clocking
+randrproto                     RandrProto - Randr extension headers
+ipasircryptominisat5           ipasircryptominisat5 - ipasircryptominisat5
+openal                         OpenAL - OpenAL is a cross-platform 3D audio API
+apr-util-1                     APR Utils - Companion library for APR
+xrandr                         Xrandr - X RandR Library
+dleyna-server-1.0              dleyna-server - UPnP & DLNA server library
+bash-completion                bash-completion - programmable completion for the bash shell
+QtGui                          Qtgui - Qtgui Library
+gdk-2.0                        GDK - GTK+ Drawing Kit (x11 target)
+libraw1394                     libraw1394 - Interface library for the Linux IEEE1394 drivers.
+tbb                            Threading Building Blocks - Intel's parallelism library for C++
+scrnsaverproto                 ScrnSaverProto - ScrnSaver extension headers
+xcomposite                     Xcomposite - X Composite Extension Library
+sdl                            sdl - Simple DirectMedia Layer is a cross-platform multimedia library designed to provide low level access to audio, keyboard, mouse, joystick, 3D hardware via OpenGL, and 2D video framebuffer.
+dri2proto                      DRI2Proto - DRI2 extension headers
+QtScript                       Qtscript - Qtscript Library
+glew                           glew - The OpenGL Extension Wrangler library
+OpenEXR                        OpenEXR - OpenEXR image library
+sm                             SM - X Session Management Library
+direct                         Direct - DirectFB base development library
+QtDesigner                     Qtdesigner - Qtdesigner Library
+geany                          Geany - A fast and lightweight IDE using GTK2
+xorg-sgml-doctools             xorg-sgml-doctools - Stylesheets and entities for X.Org documentation
+cairo-ps                       cairo-ps - PostScript surface backend for cairo graphics library
+libpulse-mainloop-glib         libpulse-mainloop-glib - PulseAudio GLib 2.0 Main Loop Wrapper
+fixesproto                     FixesProto - X Fixes extension headers
+python                         Python - Python library
+gstreamer-check-0.10           GStreamer check unit testing - Unit testing helper library for GStreamer modules
+protobuf-lite                  Protocol Buffers - Google's Data Interchange Format
+libgdiplus                     libgdiplus - GDI+ implementation
+python2                        Python - Python library
+python3                        Python - Python library
+gnome-icon-theme               gnome-icon-theme - A collection of icons used as the basis for GNOME themes
+gmodule-2.0                    GModule - Dynamic module loader for GLib
+gdk-pixbuf-xlib-2.0            GdkPixbuf Xlib - GdkPixbuf rendering for Xlib
+gstreamer-dataprotocol-0.10    GStreamer data protocol library - Data protocol for plug-ins
+slang                          slang - S-Lang programming library and interpreter
+libavcodec                     libavcodec - Libav codec library
+libdrm_radeon                  libdrm_radeon - Userspace interface to kernel DRM services for radeon
+libdrm                         libdrm - Userspace interface to kernel DRM services
+directfb                       DirectFB - Graphics and windowing library for the Linux frame buffer device
+gnome-js-common                GNOME JS Common - Common modules for GNOME JavaScript bindings.
+libpulse-simple                libpulse-simple - PulseAudio Simplified Synchronous Client Interface
+gkrellm                        GKrellM - Extensible GTK system monitoring application
+pango                          Pango - Internationalized text handling
+QtDesignerComponents           Qtdesignercomponents - Qtdesignercomponents Library
+freealut                       freealut - freealut is a free implementation of the OpenAL utility toolkit.
+geoclue-2.0                    Geoclue - The Geoinformation Service
+opencv                         OpenCV - Open Source Computer Vision Library
+pangoft2                       Pango FT2 and Pango Fc - Freetype 2.0 and fontconfig font support for Pango
+xineramaproto                  XineramaProto - Xinerama extension headers
+compositeproto                 CompositeExt - Composite extension headers
+libbsd-ctor                    libbsd-ctor - Automatic constructor functions for libbsd
+autoopts                       AutoOpts - A semi-automated generated/library option parser
+libpcre                        libpcre - PCRE - Perl compatible regular expressions C library with 8 bit character support
+cairo-xcb-shm                  cairo-xcb-shm - XCB/SHM functions for cairo graphics library
+glproto                        GLProto - GL extension headers
+cairo-pdf                      cairo-pdf - PDF surface backend for cairo graphics library
+gstreamer-0.10                 GStreamer - Streaming media framework
+pangocairo                     Pango Cairo - Cairo rendering support for Pango
+pm-utils                       pm-utils - Power management scripts for suspend and hibernate
+gnome-keyring-1                gnome-keyring - The GNOME keyring libraries
+gnome-mime-data-2.0            gnome-mime-data - Base set of file types and applications for GNOME
+x11-xcb                        X11 XCB - X Library XCB interface
+gthread-2.0                    GThread - Thread support for GLib
+Qt3Support                     Qt3support - Qt3support Library
+vdpau                          VDPAU - The Video Decode and Presentation API for UNIX
+gstreamer-base-0.10            GStreamer base classes - Base classes for GStreamer elements
+libssl                         OpenSSL - Secure Sockets Layer and cryptography libraries
+libpcrecpp                     libpcrecpp - PCRECPP - C++ wrapper for PCRE
+cairo-xcb                      cairo-xcb - XCB surface backend for cairo graphics library
+menu                           menu - ncurses 5.9 add-on library
+gl                             gl - Mesa OpenGL library
+xorg-wacom                     xorg-wacom - X.Org Wacom Tablet driver.
+libcrypto                      OpenSSL-libcrypto - OpenSSL cryptography library
+QtXmlPatterns                  Qtxmlpatterns - Qtxmlpatterns Library
+libspreadsheet-1.12            libspreadsheet - The spreadsheet internals of Gnumeric (DEVELOPMENT VERSION)
+shared-desktop-ontologies      shared-desktop-ontologies - Common OSCAF desktop ontologies
+libxml-2.0                     libXML - libXML library version2.
+apr-1                          APR - The Apache Portable Runtime library
+QtTest                         Qttest - Qt Unit Testing Library
+libdrm_nouveau                 libdrm_nouveau - Userspace interface to nouveau kernel DRM services
+alsa                           alsa - Advanced Linux Sound Architecture (ALSA) - Library
+xextproto                      XExtProto - XExt extension headers
+cairo-gobject                  cairo-gobject - gobject functions for cairo graphics library
+yelp-xsl                       yelp-xsl - Yelp XSLT Stylesheets
+gmodule-no-export-2.0          GModule - Dynamic module loader for GLib
+gstreamer-controller-0.10      GStreamer controller - Dynamic parameter control for GStreamer elements
+dleyna-renderer-1.0            dleyna-renderer - UPnP & DLNA renderer library
+x11                            X11 - X Library
+liboil-0.3                     liboil-0.3 - Library of Optimized Inner Loops
+xcb-glx                        XCB GLX - XCB GLX Extension
+QtCLucene                      Qtclucene - Qtclucene Library
+QtCore                         Qtcore - Qtcore Library
+xmu                            Xmu - Xmu Library
+gtk+-unix-print-2.0            GTK+ - GTK+ Unix print support
+gsl                            GSL - GNU Scientific Library
+libxfce4sensors-1.0            libxfce4sensors - Library for the Xfce 4 Sensors Plugin and Viewer
+libavresample                  libavresample - Libav audio resampling library
+poppler-data                   poppler-data - Encoding files for use with poppler
+dleyna-server-service-1.0      dleyna-server-service - UPnP & DLNA media content management
+xi                             Xi - X Input Extension Library
+udev                           udev - udev
+hwloc                          hwloc - Hardware locality detection and management library
+libR                           libR - R as a library
+xbitmaps                       X bitmaps - Bitmaps that are shared between X applications
+xt                             Xt - X Toolkit Library
+cairo-fc                       cairo-fc - Fontconfig font backend for cairo graphics library
+cairo                          cairo - Multi-platform 2D graphics library
+glib-2.0                       GLib - C Utility Library
+mate-icon-theme                mate-icon-theme - A collection of icons used as the basis for MATE themes
+xorg-macros                    X.Org Macros - A set of autoconf project macros for X.Org modules
+ggobi                          libggobi - GGobi library for dynamic graphics.
+cairo-ft                       cairo-ft - FreeType font backend for cairo graphics library
+libquvi-scripts                libquvi-scripts - Scripts for libquvi
+xcb-sync                       XCB Sync - XCB Sync Extension
+gio-unix-2.0                   GIO unix specific APIs - unix specific headers for glib I/O library
+libdc1394-2                    libdc1394 - 1394-based DC Control Library
+QtSql                          Qtsql - Qtsql Library
+jags                           libjags - JAGS library for Bayesian modelling using MCMC
+xfixes                         Xfixes - X Fixes  Library
+fusion                         Fusion IPC - High Level IPC Mechanisms
+xcb-xfixes                     XCB XFixes - XCB XFixes Extension
+hdf5                           HDF5 - Hierarchical Data Format 5 (HDF5)
+xmuu                           Xmuu - Mini Xmu Library
+tomboy-addins                  Tomboy Addin Library - Library providing the interfaces for Tomboy addins
+tic                            tic - ncurses 5.9 add-on library
+mpich                          mpich - High Performance and portable MPI
+xinerama                       Xinerama - The Xinerama Library
+gstreamer-check-1.0            GStreamer check unit testing - Unit testing helper library for GStreamer modules
+libbsd-overlay                 libbsd - Utility functions from BSD systems (overlay)
+tinfo                          tinfo - ncurses 5.9 terminal interface library
+minicard                       minicard - minicard
+hdf5-serial                    HDF5 - Hierarchical Data Format 5 (HDF5)
+gstreamer-base-1.0             GStreamer base classes - Base classes for GStreamer elements
+libpng                         libpng - Loads and saves PNG files
+xpm                            Xpm - X Pixmap Library
+blas-netlib                    blas - The BLAS Basic Linear Algebra Subroutines library
+gdk-x11-2.0                    GDK - GTK+ Drawing Kit (x11 target)
+usbutils                       usbutils - USB device database
+libRmath                       libRmath - The Rmath function library
+xshmfence                      xshmfence - The X Shared Memory Fence Library
+xcb-randr                      XCB RandR - XCB RandR Extension
+IlmBase                        IlmBase - Base math and exception libraries
+freetype2                      FreeType 2 - A free, high-quality, and portable font engine.
+xext                           Xext - Misc X Extension Library
+libjpeg                        libjpeg - JPEG image codec
+libtiff-4                      libtiff - Tag Image File Format (TIFF) library.
+dleyna-connector-dbus-1.0      dleyna-connector-dbus - dLeyna dbus connector
+xau                            Xau - X authorization file management libary
+fftw3f                         FFTW - fast Fourier transform library
+xcb-present                    XCB Present - XCB Present Extension
+ice                            ICE - X Inter Client Exchange Library
+lrzip                          lrzip - lrzip compression library
+atk                            Atk - Accessibility Toolkit
+fftw3l                         FFTW - fast Fourier transform library
+openssl                        OpenSSL - Secure Sockets Layer and cryptography libraries and tools
