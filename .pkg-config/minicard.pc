@@ -1,0 +1,10 @@
+prefix=/home/tirreg/.Win7.V2/minicard/minicard
+includedir=${prefix}
+libdir=/home/tirreg/.lib
+
+Name: minicard
+Description: minicard
+Version: 1.0.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lminicard
+
