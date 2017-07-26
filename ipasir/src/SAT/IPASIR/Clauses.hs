@@ -45,8 +45,8 @@ partitionClauses _ ((XOr x):xs)
         transform [a] = Just [ const a <$> (fromBool $ isPositive x) ]
         transform _   = Nothing
         
-{- |Generates a CNF, which is equivalent to a xclause. The First parameter tells if the 
-    xclause is nagated, the second is the length.
+{- |Generates a CNF, which is equivalent to a xclause. The first parameter tells if the 
+    xclause is positive, the second is the length.
 
     The cnf will be constructed by the rule:
 
@@ -61,9 +61,9 @@ respectivly
 $$\\lnot\\bigoplus_{i=1}^{n}x_{i}\\equiv\\lnot x_{n}\\oplus\\bigoplus_{i=1}^{n-1}x_{i}\\equiv\\left(x_{n}\\vee\\bigoplus_{i=1}^{n-1}x_{i}\\right)\\wedge\\left(\\lnot x_{n}\\vee\\lnot\\bigoplus_{i=1}^{n-1}x_{i}\\right)$$
 -}
 oddToCNF' :: Bool -> Int -> [[Bool]]
-oddToCNF' False 0 = [[]]
-oddToCNF' True  0 = []
-oddToCNF' positive numberVars = map (False:) positives ++ map (True:) negatives
+oddToCNF' True  0 = [[]]
+oddToCNF' False 0 = []
+oddToCNF' positive numberVars = map (True:) positives ++ map (False:) negatives
     where
         negatives = oddToCNF' (not positive) (numberVars-1)
         positives = oddToCNF' positive (numberVars-1)
