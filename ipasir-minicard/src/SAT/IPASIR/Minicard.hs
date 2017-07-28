@@ -11,6 +11,7 @@ module SAT.IPASIR.Minicard
 
 import Data.Proxy
 import Data.Functor
+import qualified Data.Set as Set
 
 import Control.Comonad
 import Control.Monad.Trans.Class
@@ -22,6 +23,53 @@ import SAT.IPASIR.Minicard.C
 
 minicard :: Proxy (IpasirSolver Minicard s)
 minicard = Proxy
+
+data MinisatCardinality v = MinisatAtMostK  [Lit (Var v)] Word
+                          | MinisatAtLeastK [Lit (Var v)] Word
+
+lits (MinisatAtMostK  l _) = l
+lits (MinisatAtLeastK l _) = l
+k    (MinisatAtMostK  _ x) = x
+k    (MinisatAtLeastK _ x) = x
+
+toWords :: Ord v => IpasirSolver Minicard v -> MinisatCardinality v -> [Lit Word]
+toWords (IpasirSolver _ vc) (MinisatAtMostK lits k) = map (varToInt vc <$>) lits
+
+minisatAtMostK :: Ord v =>  [Lit v] -> Word -> MinisatCardinality v
+minisatAtMostK lits k = MinisatAtMostK lits' k
+    where
+        lits' = map (Right <$>) lits
+
+minisatAtLeastK :: Ord v =>  [Lit v] -> Word -> MinisatCardinality v
+minisatAtLeastK lits k = MinisatAtLeastK lits' k
+    where
+        lits' = map (Right <$>) lits
+
+toAtMostK :: MinisatCardinality v -> MinisatCardinality v
+toAtMostK (MinisatAtMostK  l k) = MinisatAtMostK l k
+toAtMostK (MinisatAtLeastK l k) = MinisatAtMostK l' k'
+    where
+        k' = toEnum $ max 0 $ length l - (fromEnum k)
+        l' = map neg l
+
+instance Ord v => HasVariables (MinisatCardinality v) where
+    type VariableType (MinisatCardinality v) = v
+    getAllVariables ls _ = let MinisatAtMostK lits _ = ls in map extract lits
+    getAllHelpers _ _    = []
+    getHelpers    _ _    = Set.empty
+
+instance Ord v => Clauses (IpasirSolver Minicard) (MinisatCardinality v) where
+    addClauses conf = do
+        solvers <- get
+        newSolver <- lift $ mapM (addCard (toAtMostK conf)) solvers
+        put newSolver
+        return ()
+        where
+            addCard :: MinisatCardinality v -> IpasirSolver Minicard v -> IO (IpasirSolver Minicard v)
+            addCard conf solver@(IpasirSolver cSolver _) = do
+                let iLits = toWords solver conf
+                addAtMostK cSolver iLits $ k conf
+                return solver
 
 instance Ord v => Clauses (IpasirSolver Minicard) (Formula v) where
     addClauses f = do
@@ -37,4 +85,6 @@ instance Ord v => Clauses (IpasirSolver Minicard) (Formula v) where
                 where
                     (vc', cnf) = formulaToCNF vc f
                     intCNF  = clausesToInt vc' cnf
+
+
 

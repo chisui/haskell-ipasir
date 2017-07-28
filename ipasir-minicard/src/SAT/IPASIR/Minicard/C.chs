@@ -6,6 +6,7 @@
 {#context lib="minicard" #}
 -- #include "cryptominisat_bindings.h"
 #include "ipasir.h"
+#include "cardinalityAdder.h"
 
 module SAT.IPASIR.Minicard.C
     {-( Minicard
@@ -24,6 +25,7 @@ import Foreign.C.Types
 import SAT.IPASIR
 import SAT.IPASIR.Api
 
+import Debug.Trace
 
 newtype Minicard = Minicard (ForeignPtr ()) deriving Show
 
@@ -55,6 +57,18 @@ instance Ipasir Minicard where
             int2SolveRes a  = error $ "Minicard ipasir is behaving poorly: solve returned " ++ show a
     ipasirVal s lit = int2Lit . fromEnum <$> withCS s (`{#call unsafe ipasir_val #}` (toEnum . fromEnum) lit)
     ipasirFailed s lit = toEnum . fromEnum <$> withCS s (`{#call unsafe ipasir_failed #}` (toEnum . fromEnum) lit)
+
+addAtMostK :: Minicard -> [Lit Word] -> Word -> IO ()
+addAtMostK s lits k = withCS s addCardinality
+    where
+  --      convertEnum = toEnum . fromEnum
+        addCardinality solver = do
+            let vector = Vec.fromList $ map lit2int lits :: Vec.Vector CInt
+            traceM (show vector)
+            let size   = toEnum $ Vec.length vector
+            let k'     = toEnum $ fromEnum k
+            Vec.unsafeWith vector $ \ptr -> do
+                {#call unsafe addingCardinatity #} solver size (castPtr ptr) k'
 
 {-
 cryptoAddXorClauses :: CryptoMiniSat -> [Lit [Word]] -> IO ()
