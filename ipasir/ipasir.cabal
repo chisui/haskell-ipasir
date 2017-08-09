@@ -24,7 +24,7 @@ library
                      , SAT.IPASIR.VarCache
                      , SAT.IPASIR.FormulaPrinting
                      , SAT.IPASIR.Clauses
-                     , SAT.IPASIR.GlobalVariable
+                     , SAT.IPASIR.EnvironmentVariable
   build-depends:       base >=4.9 && <4.10
                      , containers >= 0.5.10
                      , transformers

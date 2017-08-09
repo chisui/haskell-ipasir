@@ -6,19 +6,18 @@ module SAT.IPASIR.Api
 
 
 import Control.Monad
+import Control.Comonad
 import Data.Vector hiding ((++))
 import Data.IORef
 import System.Random
 
-import SAT.IPASIR.GlobalVariable
+import SAT.IPASIR.EnvironmentVariable
 import SAT.IPASIR.Literals
 
-env :: (Ipasir a, Show a) => a -> IORef [Lit Word]
-env x = declareIORef (show x) [] 
+env :: Ipasir i => Env i Word
+env = newEnv
 
-
-
-newtype TestSolver = TestSolver Int deriving (Show)
+newtype TestSolver = TestSolver Int deriving (Eq,Ord)
 
 instance Ipasir (TestSolver) where
     ipasirSignature (TestSolver i) = return $ "TestSolver " ++ show i
@@ -37,7 +36,7 @@ instance Ipasir (TestSolver) where
     This class is meant to be implemented using foreign function interfaces to the actual C solver.
     In most cases the type @a@ will be a @newtype@ around a 'ForeignPtr'.
 -}
-class Show a => Ipasir a where
+class Ord a => Ipasir a where
 
     {-|
      Return the name and the version of the incremental @SAT@
@@ -73,14 +72,9 @@ class Show a => Ipasir a where
      arguments in API functions.
     -}
     ipasirAdd :: a -> Maybe (Lit Word) -> IO ()
-    ipasirAdd ptr Nothing = do
-        let var = env ptr
-        list <- readIORef var
-        ipasirAddClause ptr list
-        writeIORef var []
+    ipasirAdd ptr Nothing = return ()
     ipasirAdd ptr (Just x) = do
-        list <- readIORef $ env ptr
-        modifyIORef (env ptr) (x:)
+        modifyVar env ptr (max (extract x))
 
     {-|
      Add an assumption for the next @SAT@ search (the next call
