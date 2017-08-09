@@ -101,19 +101,19 @@ class (MSolver s, HasVariables c) => Clauses s c where
 class MSolver (s :: * -> *) where
 
     -- | Create a new solver of type @s@ and add it to the state.
-    {-# SPECIALIZE newMSolver :: Ord v => Proxy (s v) -> StateT (Last (s v)) IO () #-}
-    {-# SPECIALIZE newMSolver :: Ord v => Proxy (s v) -> StateT [s v] IO () #-}
     newMSolver :: (Ord v, Applicative m, Monoid (m (s v))) => Proxy (s v) -> StateT (m (s v)) IO ()
+    --{-# SPECIALIZE newMSolver :: Ord v => Proxy (s v) -> StateT (Last (s v)) IO () #-}
+    --{-# SPECIALIZE newMSolver :: Ord v => Proxy (s v) -> StateT [s v] IO () #-}
 
     -- | Find a Solution for each solver inside @m@.
-    {-# SPECIALIZE mSolve :: Ord v => StateT (Last (s v)) IO (Last (ESolution v)) #-}
-    {-# SPECIALIZE mSolve :: Ord v => StateT [s v] IO [ESolution v] #-}
     mSolve :: (Ord v, Traversable m) => StateT (m (s v)) IO (m (ESolution v))
+    --{-# SPECIALIZE mSolve :: Ord v => StateT (Last (s v)) IO (Last (ESolution v)) #-}
+    --{-# SPECIALIZE mSolve :: Ord v => StateT [s v] IO [ESolution v] #-}
 
     -- | Find all Solutions  for each solver inside @m@.
-    {-# SPECIALIZE mSolveAllForVars :: Ord v => [Var v] -> StateT (Last (s v)) IO (Last (Conflict v, [Solution v])) #-}
-    {-# SPECIALIZE mSolveAllForVars :: Ord v => [Var v] -> StateT [s v] IO [(Conflict v, [Solution v])] #-}
     mSolveAllForVars :: (Ord v, Traversable m) => [Var v] -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
+    --{-# SPECIALIZE mSolveAllForVars :: Ord v => [Var v] -> StateT (Last (s v)) IO (Last (Conflict v, [Solution v])) #-}
+    --{-# SPECIALIZE mSolveAllForVars :: Ord v => [Var v] -> StateT [s v] IO [(Conflict v, [Solution v])] #-}
 
 class (MSolver s) => Solver s where
     
