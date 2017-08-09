@@ -91,17 +91,29 @@ class (Ord (VariableType c)) => HasVariables c where
     getHelpers :: c -> VarCache (VariableType c) -> Set.Set Word
     getHelpers c vc = Set.fromList $ getAllHelpers c vc
 
--- | 
-data Clausable s = forall c. Clauses s c => Clausable { toClauses :: c }
-
 -- | Everything that can be added into a solver @s@ has to implement @Clauses@
 class (MSolver s, HasVariables c) => Clauses s c where
+
+    -- | add @c@ to all solvers @s@ in @m@.    
     addClauses :: Traversable m => c -> StateT (m (s (VariableType c))) IO ()
 
+-- | Monadic Solver.
 class MSolver (s :: * -> *) where
+
+    -- | Create a new solver of type @s@ and add it to the state.
     newMSolver :: (Ord v, Applicative m, Monoid (m (s v))) => Proxy (s v) -> StateT (m (s v)) IO ()
+    --{-# SPECIALIZE newMSolver :: Ord v => Proxy (s v) -> StateT (Last (s v)) IO () #-}
+    --{-# SPECIALIZE newMSolver :: Ord v => Proxy (s v) -> StateT [s v] IO () #-}
+
+    -- | Find a Solution for each solver inside @m@.
     mSolve :: (Ord v, Traversable m) => StateT (m (s v)) IO (m (ESolution v))
+    --{-# SPECIALIZE mSolve :: Ord v => StateT (Last (s v)) IO (Last (ESolution v)) #-}
+    --{-# SPECIALIZE mSolve :: Ord v => StateT [s v] IO [ESolution v] #-}
+
+    -- | Find all Solutions  for each solver inside @m@.
     mSolveAllForVars :: (Ord v, Traversable m) => [Var v] -> StateT (m (s v)) IO (m (Conflict v, [Solution v]))
+    --{-# SPECIALIZE mSolveAllForVars :: Ord v => [Var v] -> StateT (Last (s v)) IO (Last (Conflict v, [Solution v])) #-}
+    --{-# SPECIALIZE mSolveAllForVars :: Ord v => [Var v] -> StateT [s v] IO [(Conflict v, [Solution v])] #-}
 
 class (MSolver s) => Solver s where
     
