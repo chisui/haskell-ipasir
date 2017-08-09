@@ -1,18 +1,43 @@
+{-# LANGUAGE FlexibleInstances, TypeFamilies, UndecidableInstances #-}
+
 module SAT.IPASIR.Api
-    ( Ipasir(..)
-    ) where
+    {-( Ipasir(..)
+    ) -}where
 
 
 import Control.Monad
+import Data.Vector hiding ((++))
+import Data.IORef
+import System.Random
 
+import SAT.IPASIR.GlobalVariable
 import SAT.IPASIR.Literals
+
+env :: (Ipasir a, Show a) => a -> IORef [Lit Word]
+env x = declareIORef (show x) [] 
+
+
+
+newtype TestSolver = TestSolver Int deriving (Show)
+
+instance Ipasir (TestSolver) where
+    ipasirSignature (TestSolver i) = return $ "TestSolver " ++ show i
+    ipasirInit     = TestSolver <$> System.Random.randomIO
+  --  ipasirAdd  =
+    ipasirSolve _    = return Nothing
+    ipasirVal _ _    = return Nothing
+    ipasirFailed _ _ = return False
+    ipasirAssume _ _ = undefined
+    ipasirAddClause  = undefined
+     
+
 
 {-|
     Class that models the <https://github.com/biotomas/ipasir/blob/master/ipasir.h ipasir.h> interface.
     This class is meant to be implemented using foreign function interfaces to the actual C solver.
     In most cases the type @a@ will be a @newtype@ around a 'ForeignPtr'.
 -}
-class Ipasir a where
+class Show a => Ipasir a where
 
     {-|
      Return the name and the version of the incremental @SAT@
@@ -32,7 +57,6 @@ class Ipasir a where
     -}
     ipasirInit :: IO a
 
-
     {-|
      Add the given literal into the currently added clause
      or finalize the clause with a 'Nothing'.  Clauses added this way
@@ -49,6 +73,14 @@ class Ipasir a where
      arguments in API functions.
     -}
     ipasirAdd :: a -> Maybe (Lit Word) -> IO ()
+    ipasirAdd ptr Nothing = do
+        let var = env ptr
+        list <- readIORef var
+        ipasirAddClause ptr list
+        writeIORef var []
+    ipasirAdd ptr (Just x) = do
+        list <- readIORef $ env ptr
+        modifyIORef (env ptr) (x:)
 
     {-|
      Add an assumption for the next @SAT@ search (the next call
@@ -130,3 +162,4 @@ class Ipasir a where
         ipasirAddClauses s ls
 
     --ipasir_set_terminate :: a ->  (void * solver, void * state, int (*terminate)(void * state));
+

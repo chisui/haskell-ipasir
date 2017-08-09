@@ -24,8 +24,9 @@ library
                      , SAT.IPASIR.VarCache
                      , SAT.IPASIR.FormulaPrinting
                      , SAT.IPASIR.Clauses
+                     , SAT.IPASIR.GlobalVariable
   build-depends:       base >=4.9 && <4.10
-                     , containers
+                     , containers >= 0.5.10
                      , transformers
                      , lens
                      , primitive
@@ -33,6 +34,8 @@ library
                      , vector
                      , comonad
                      , monad-loops
+                     , stm
+                     , random
   hs-source-dirs:      src
   default-language:    Haskell2010
 

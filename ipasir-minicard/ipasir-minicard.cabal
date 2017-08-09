@@ -37,6 +37,7 @@ library
                      , lens
                      , comonad
                      , transformers
+                     , containers
   default-language:    Haskell2010
   ghc-options:         -static -optl-static
   pkgconfig-depends:   minicard
