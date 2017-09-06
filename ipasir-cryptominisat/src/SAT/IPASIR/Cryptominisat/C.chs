@@ -27,7 +27,7 @@ import SAT.IPASIR
 import SAT.IPASIR.Api
 
 
-newtype CryptoMiniSat = CryptoMiniSat (ForeignPtr ())
+newtype CryptoMiniSat = CryptoMiniSat (ForeignPtr ()) deriving (Eq,Ord)
 
 foreign import ccall unsafe "SAT/IPASIR/Cryptominisat/C.chs.h &ipasir_release"
     ipasir_release :: FinalizerPtr ()

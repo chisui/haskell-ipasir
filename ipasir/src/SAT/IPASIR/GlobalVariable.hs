@@ -48,7 +48,7 @@ type Registry = Map (Int,Int,String) Dynamic
 setupRegistry :: IO (MVar Registry)
 setupRegistry = m `pseq` newMVar m
   where
-	m = M.empty
+    m = M.empty
 
 
 
@@ -63,15 +63,15 @@ globalRegistry = m `pseq` unsafePerformIO (newMVar m)
 
 -- | Exposed for unit testing
 lookupOrInsert
-    :: forall a. forall ref. (Typeable a, Typeable1 ref)
+    :: forall a ref. (Typeable a, Typeable ref )
     => MVar Registry
     -> (a -> IO (ref a))
     -> String
     -> a
-    -> IO (ref a)
+    -> IO (ref a) 
 lookupOrInsert registry new name _
     | registry `pseq` new `pseq` name `pseq` False = undefined
-{-
+
 lookupOrInsert registry new name val = modifyMVar registry lkup
   where
     err ex got = error $ "Data.Global.Registry: Invariant violation\n"
@@ -80,7 +80,7 @@ lookupOrInsert registry new name val = modifyMVar registry lkup
 
 #if __GLASGOW_HASKELL__ >= 702
     typVal = typeOf val
-    typRef = typeOf (undefined :: ref ()) -- TypeRep representing the reference, e.g. IORef,
+    typRef = typeOf1 (undefined :: ref () ) -- TypeRep representing the reference, e.g. IORef,
                                           -- MVar
 
     lkup :: Registry -> IO (Registry, ref a)
@@ -123,7 +123,7 @@ typeOf' x =
 
 #endif
 
--}
+
 
 {-# NOINLINE lookupOrInsert #-}
 

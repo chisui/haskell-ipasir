@@ -27,7 +27,7 @@ import SAT.IPASIR.Api
 
 import Debug.Trace
 
-newtype Minicard = Minicard (ForeignPtr ()) deriving Show
+newtype Minicard = Minicard (ForeignPtr ()) deriving (Show,Eq,Ord)
 
 foreign import ccall unsafe "SAT/IPASIR/Minicard/C.chs.h &ipasir_release"
     ipasir_release :: FinalizerPtr ()
