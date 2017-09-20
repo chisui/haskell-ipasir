@@ -7,29 +7,40 @@ module SAT.IPASIR.Api
 
 import Control.Monad
 import Control.Comonad
-import Data.Vector hiding ((++))
+import qualified Data.Vector as Vec
 import Data.IORef
+import Data.Word
+import qualified Data.Set as Set
 import System.Random
+import System.IO.Unsafe
 
 import SAT.IPASIR.EnvironmentVariable
 import SAT.IPASIR.Literals
 
-env :: Ipasir i => Env i Word
-env = newEnv
+data SolverState = INPUT | SAT | UNSAT
+    deriving (Show,Eq)
 
-newtype TestSolver = TestSolver Int deriving (Eq,Ord)
+maxVar :: Env Word Word
+maxVar = unsafePerformIO newEnv
+
+clauseCreator :: Env Word [Int]
+clauseCreator = unsafePerformIO newEnv
+
+solverState :: Env Word SolverState
+solverState = unsafePerformIO newEnv
+
+newtype TestSolver = TestSolver Int deriving (Show,Eq,Ord)
 
 instance Ipasir (TestSolver) where
     ipasirSignature (TestSolver i) = return $ "TestSolver " ++ show i
     ipasirInit     = TestSolver <$> System.Random.randomIO
   --  ipasirAdd  =
     ipasirSolve _    = return Nothing
-    ipasirVal _ _    = return Nothing
+    ipasirVal _ _    = return 0
     ipasirFailed _ _ = return False
     ipasirAssume _ _ = undefined
     ipasirAddClause  = undefined
-     
-
+    ipasirGetID (TestSolver i) = fromInteger $ toInteger i
 
 {-|
     Class that models the <https://github.com/biotomas/ipasir/blob/master/ipasir.h ipasir.h> interface.
@@ -39,10 +50,22 @@ instance Ipasir (TestSolver) where
 class Ord a => Ipasir a where
 
     {-|
+     Every initialized Solver needs a unique ID. The ID is mostly the pointer to to solver.
+    -}
+    ipasirGetID :: a -> Word
+    
+    {-|
+     Returns the maximal variable.  
+    -}
+    ipasirMaxVar :: a -> IO Word
+    ipasirMaxVar solver = maybe 0 id <$> (saveReadVar maxVar $ ipasirGetID solver)
+
+    {-|
      Return the name and the version of the incremental @SAT@
      solving library.
     -}
     ipasirSignature :: a -> IO String
+    ipasirSignature solver = return $ "Solver with ID " ++ show (ipasirGetID solver)
 
     {-|
      Construct a new solver and return a pointer to it.
@@ -71,10 +94,15 @@ class Ord a => Ipasir a where
      negation overflow).  This applies to all the literal
      arguments in API functions.
     -}
-    ipasirAdd :: a -> Maybe (Lit Word) -> IO ()
-    ipasirAdd ptr Nothing = return ()
-    ipasirAdd ptr (Just x) = do
-        modifyVar env ptr (max (extract x))
+    ipasirAdd :: a -> Int -> IO ()
+    ipasirAdd solver 0  = do
+        let s = ipasirGetID solver
+        clause <- readVar clauseCreator s 
+        ipasirAddClause solver clause
+        writeVar clauseCreator s []
+    ipasirAdd solver x = do
+        let s = ipasirGetID solver
+        modifyVar clauseCreator s (x:)
 
     {-|
      Add an assumption for the next @SAT@ search (the next call
@@ -84,7 +112,7 @@ class Ord a => Ipasir a where
      Required state: @INPUT@ or @SAT@ or @UNSAT@
      State after: @INPUT@
     -}
-    ipasirAssume :: a -> Lit Word -> IO ()
+    ipasirAssume :: a -> Int -> IO ()
 
     {-|
      Solve the formula with specified clauses under the specified assumptions.
@@ -108,7 +136,7 @@ class Ord a => Ipasir a where
      Required state: @SAT@
      State after: @SAT@
     -}
-    ipasirVal :: a -> Word -> IO (Maybe (Lit Word))
+    ipasirVal :: a -> Word -> IO Int
     
     {-|
      Check if the given assumption literal was used to prove the
@@ -133,10 +161,10 @@ class Ord a => Ipasir a where
 
      The default implementation adds each literal of the clause by calling 'ipasirAdd' and finally adding a 'Nothing'.
     -}
-    ipasirAddClause :: a -> [Lit Word] -> IO ()
-    ipasirAddClause s [] = ipasirAdd s Nothing
+    ipasirAddClause :: a -> [Int] -> IO ()
+    ipasirAddClause s [] = ipasirAdd s 0
     ipasirAddClause s (l:ls) = do
-        ipasirAdd s (Just l)
+        ipasirAdd s l
         ipasirAddClause s ls
     
     {-|
@@ -149,11 +177,149 @@ class Ord a => Ipasir a where
 
      The default implementation adds each clause by calling 'ipasirAddClause'.
     -}
-    ipasirAddClauses :: a -> [[Lit Word]] -> IO ()
+    ipasirAddClauses :: a -> [[Int]] -> IO ()
     ipasirAddClauses _ [] = return ()
     ipasirAddClauses s (l:ls) = do
         ipasirAddClause  s l
         ipasirAddClauses s ls
+    
 
-    --ipasir_set_terminate :: a ->  (void * solver, void * state, int (*terminate)(void * state));
+
+{-|
+  Initializes some variables. If you want to implement a new solver, make sure you 
+  call this function in your implementation of 'ipasirInit'
+-}
+ipasirInitImpl :: Ipasir a => a -> IO ()
+ipasirInitImpl solver = do 
+    let s = ipasirGetID solver
+    writeVar maxVar s 0
+    writeVar clauseCreator s []
+    writeVar solverState s INPUT
+
+{-|
+  If you want to implement a new solver, make sure you 
+  call this function in your implementation of 'ipasirAdd' (needed iff you overwrite 'ipasirAdd')
+-}
+ipasirAddImpl :: Ipasir a => a ->  Int  -> IO ()
+ipasirAddImpl solver x = do
+    modifyMaxVar solver $ abs x
+    setSolverState solver INPUT
+
+{-|
+  If you want to implement a new solver, make sure you 
+  call this function in your implementation of 'ipasirAddClause' 
+  (needed iff you overwrite 'ipasirAddClause')
+-}
+ipasirAddClauseImpl :: Ipasir a => a -> [Int] -> IO ()
+ipasirAddClauseImpl solver clause = do
+    modifyMaxVar solver $ maximum $ map abs clause
+    setSolverState solver INPUT
+    
+{-|
+  If you want to implement a new solver, make sure you 
+  call this function in your implementation of 'ipasirAddClauses' 
+  (needed iff you overwrite 'ipasirAddClauses')
+-}
+ipasirAddClausesImpl :: Ipasir a => a -> [[Int]] -> IO ()
+ipasirAddClausesImpl solver clauses = do
+    modifyMaxVar solver $ maximum $ map abs $ concat clauses
+    setSolverState solver INPUT
+
+{-|
+  If you want to implement a new solver, make sure you 
+  call this function in your implementation of 'ipasirAssume'.
+-}
+ipasirAssumeImpl :: Ipasir a => a -> IO ()
+ipasirAssumeImpl solver = setSolverState solver INPUT
+
+{-|
+  If you want to implement a new solver, make sure you 
+  call this function in your implementation of 'ipasirSolve'. The second
+  paremeter stands for the regular return value.
+-}
+ipasirSolveImpl :: Ipasir a => a -> Maybe Bool -> IO ()
+ipasirSolveImpl solver b = do
+    case b of
+        Nothing    -> setSolverState solver INPUT
+        Just True  -> setSolverState solver SAT
+        Just False -> setSolverState solver UNSAT
+
+{-|
+    Leads into an error if its not possible to read a solution. Use it in an implementation
+    of 'ipasirVal' or 'ipasirSolution'.
+-}
+ipasirValImpl :: Ipasir a => a -> IO ()
+ipasirValImpl solver = do
+    state <- readVar solverState $ ipasirGetID solver
+    case state of
+        SAT -> return ()
+        x   -> error $ "You cant read a solution here. The solver is in the state " 
+                        ++ show x ++ " but has to be in the state " ++ show SAT
+
+{-|
+    Leads into an error if its not possible to read a conflict. Use it in an implementation
+    of 'ipasirFail' or 'ipasirConflict'.
+-}                
+ipasirFailedImpl :: Ipasir a => a -> IO ()
+ipasirFailedImpl solver = do
+    state <- readVar solverState $ ipasirGetID solver
+    case state of
+        UNSAT -> return ()
+        x     -> error $ "You cant read a conflict here. The solver is in the state " 
+                          ++ show x ++ " but has to be in the state " ++ show UNSAT
+
+{-|
+    Sets the maximal variable of the solver on second parameter. Does nothing, if the value
+    is already greater or equals.
+-}
+modifyMaxVar :: (Ipasir a, Enum e) => a -> e -> IO ()
+modifyMaxVar solver var = modifyVar maxVar (ipasirGetID solver) (max (toEnum (fromEnum var)))
+
+{-|
+    Sets the solver state. This can be @INPUT@, @SAT@ or @UNSAT@. 
+-}
+setSolverState :: Ipasir a => a -> SolverState -> IO ()
+setSolverState solver state = writeVar solverState (ipasirGetID solver) state
+
+{-| 
+    Same as 'ipasirAdd' but working on @Maybe (Lit Word)@
+-}
+ipasirAddLit :: Ipasir a => a -> Maybe (Lit Word) -> IO ()
+ipasirAddLit s Nothing = ipasirAdd s 0
+ipasirAddLit s (Just lit) = ipasirAdd s $ litToInt lit
+
+{-| 
+    Same as 'ipasirAssume' but working on @Lit Word@
+-}
+ipasirAssumeLit :: Ipasir a => a -> Lit Word -> IO ()
+ipasirAssumeLit s lit = ipasirAssume s $ litToInt lit
+
+{-| 
+    Same as 'ipasirVal' but working on @Maybe (Lit Word)@
+-}
+ipasirValLit :: Ipasir a => a -> Word -> IO (Maybe (Lit Word))
+ipasirValLit s x = do 
+    r <- ipasirVal s x
+    return $ case compare r 0 of
+        EQ -> Nothing
+        LT -> Just $ Neg $ toEnum (-r)
+        GT -> Just $ Pos $ toEnum r
+
+{-| 
+    Same as 'ipasirAddClause' but working on @Lit Word@
+-}
+ipasirAddClauseLit :: Ipasir a => a -> [Lit Word] -> IO ()
+ipasirAddClauseLit s = ipasirAddClause s . map litToInt
+
+{-| 
+    Same as 'ipasirAddClauses' but working on @Lit Word@
+-}
+ipasirAddClausesLit :: Ipasir a => a -> [[Lit Word]] -> IO ()
+ipasirAddClausesLit s clauses = mapM_ (ipasirAddClauseLit s) clauses
+
+
+{-
+iterativeSolving :: Ipasir a => a -> b -> (Vector (Maybe Bool) -> b -> ([[Int]],b) ) -> (Set Word, [[Int]])
+iterativeSolving solver v f = undefined
+-}
 

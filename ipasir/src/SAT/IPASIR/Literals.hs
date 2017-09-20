@@ -12,6 +12,8 @@ module SAT.IPASIR.Literals
     , fromBool
     , neg
     , isPositive
+    , intToLit
+    , litToInt
     ) where
 
 import Data.String (IsString(..))
@@ -83,6 +85,14 @@ isPositive :: Lit a -> Bool
 isPositive (Pos _) = True
 isPositive (Neg _) = False
 
+intToLit :: Int -> Lit Word
+intToLit i
+    | i < 0 = Neg $ toEnum (-i)
+    | i > 0 = Pos $ toEnum i
+    
+litToInt :: Lit Word -> Int
+litToInt (Pos x) = fromEnum x
+litToInt (Neg x) = negate $ fromEnum x
 
 instance (Enum a) => Enum (Lit a) where
     -- | Coerces a @Literal@ of a @Num@ @n@ to a signed @Int@ where the sign is the literals sign.

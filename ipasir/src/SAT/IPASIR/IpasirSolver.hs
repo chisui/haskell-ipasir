@@ -54,7 +54,9 @@ instance Ipasir i => MSolver (IpasirSolver i) where
             mSolve' solver@(IpasirSolver i vc) = bimap (Set.map (intToVar vc)) (mapLits vc) <$> mSolveInt solver
 
     mSolveAllForVars :: forall v m. (Ord v, Traversable m) => [Var v] -> StateT (m (IpasirSolver i v)) IO (m (Conflict v, [Solution v]))
-    mSolveAllForVars ls = do
+    mSolveAllForVars ls = undefined
+{-    
+     do
         solvers <- get
         lift $ mapM solve solvers
         where
@@ -78,7 +80,7 @@ instance Ipasir i => MSolver (IpasirSolver i) where
                             val = sol Map.! i
                     sign' True = -1
                     sign' False = 1
-
+-}
 
 mSolveAllForVars' :: forall v m i. (Ord v, Traversable m, Ipasir i) => [Var v] -> StateT (m (IpasirSolver i v)) IO (m (Conflict v, [Solution v]))
 mSolveAllForVars' ls = do
@@ -96,7 +98,7 @@ mSolveAllForVars' ls = do
                 solve' (Left conflict) = return (conflict, [])
                 solve' (Right sol) = do
                     let clause = mapMaybe (extract sol) ints
-                    ipasirAddClause i clause
+                    ipasirAddClauseLit i clause
                     (conflict, sols) <- solve' =<< mSolveInt s
                     return (conflict, sol:sols)
                 extract :: ISolution Word -> Word -> Maybe (Lit Word)
@@ -122,7 +124,7 @@ instance (Ord v, Ipasir i) => Clauses (IpasirSolver i) [[Lit v]] where
         return ()
         where
             addClauses' (IpasirSolver solver cache) = do
-                ipasirAddClauses solver intClauses
+                ipasirAddClausesLit solver intClauses
                 return $ IpasirSolver solver cache'
                 where
                     intClauses :: [[Lit Word]]
@@ -150,10 +152,11 @@ mSolveInt (IpasirSolver s vc) = do
     sol <- ipasirSolve s
     case sol of
         Nothing -> error "solving interrupted"
-        (Just True) -> Right <$> makeSolution ( ((isPositive <$>) <$> ) . ipasirVal s)
+        (Just True) -> Right <$> makeSolution ( ((isPositive <$>) <$> ) . ipasirValLit s)
         (Just False) -> Left <$> makeConflict (ipasirFailed s)
     where
         makeConflict :: (Word -> IO Bool) -> IO (Set.Set Word)
         makeConflict ioOp = Map.keysSet . Map.filter id <$> makeSolution ioOp
         makeSolution :: (Word -> IO a) -> IO (Map.Map Word a)
         makeSolution ioOp = Map.fromList <$> mapM (\i -> (i,) <$> ioOp i) [1..numVars vc]
+

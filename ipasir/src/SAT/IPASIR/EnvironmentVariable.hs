@@ -5,16 +5,20 @@ module SAT.IPASIR.EnvironmentVariable where
 import Prelude hiding (lookup)
 import Data.Map
 import Data.IORef
+import Control.Monad
 
 import System.IO.Unsafe
+
+import Debug.Trace
 
 class Ord a => Variable a where
     type family Data a  :: *
 
-data Env k a = Env (IORef (Map k (IORef a)))
+data Env k a = Env !(IORef (Map k (IORef a)))
 
-newEnv :: Ord k => Env k a
-newEnv = unsafePerformIO $ Env <$> newIORef empty
+{-# NOINLINE newEnv #-}
+newEnv :: Ord k => IO (Env k a)
+newEnv =  Env <$> newIORef empty
 
 saveReadVar :: Ord k => Env k a -> k -> IO (Maybe a)
 saveReadVar (Env mref) var = do
@@ -38,6 +42,13 @@ writeVar (Env mref) var val = do
         _ -> do
             new <- newIORef val
             writeIORef mref (insert var new m)
+
+modifyDeclareVar :: Ord k => Env k a -> k -> a -> (a -> a) -> IO ()
+modifyDeclareVar env var decl f = do
+    x <- saveReadVar env var
+    case x of
+        Just x  -> trace "Fall 1: " $ modifyVar env var f
+        Nothing -> trace "Fall 2: " $ writeVar  env var decl
 
 modifyVar :: Ord k => Env k a -> k -> (a -> a) -> IO ()
 modifyVar (Env mref) var f = do
