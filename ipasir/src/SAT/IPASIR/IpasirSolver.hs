@@ -22,6 +22,7 @@ import Data.Maybe
 import Data.Bifunctor
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.Vector as Vec
 
 import SAT.IPASIR.Api
 import SAT.IPASIR.Solver
@@ -151,12 +152,12 @@ mSolveInt :: Ipasir i => IpasirSolver i v -> IO (IESolution Word)
 mSolveInt (IpasirSolver s vc) = do
     sol <- ipasirSolve s
     case sol of
-        Nothing -> error "solving interrupted"
-        (Just True) -> Right <$> makeSolution ( ((isPositive <$>) <$> ) . ipasirValLit s)
-        (Just False) -> Left <$> makeConflict (ipasirFailed s)
+        LUndef -> error "solving interrupted"
+        LTrue  -> Right <$> makeSolution <$> ipasirSolution s
+        LFalse -> Left <$> makeConflict (ipasirFailed s)
     where
         makeConflict :: (Word -> IO Bool) -> IO (Set.Set Word)
         makeConflict ioOp = Map.keysSet . Map.filter id <$> makeSolution ioOp
-        makeSolution :: (Word -> IO a) -> IO (Map.Map Word a)
-        makeSolution ioOp = Map.fromList <$> mapM (\i -> (i,) <$> ioOp i) [1..numVars vc]
+        makeSolution :: Vec.Vector LBool -> Map.Map Word LBool
+        makeSolution = Map.fromList . toList . Vec.imap (\i val -> (toEnum i, val))
 

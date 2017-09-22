@@ -35,19 +35,10 @@ import SAT.IPASIR.Api
 import SAT.IPASIR.Literals
 import SAT.IPASIR.VarCache
 
--- | A solution for a single variable.
--- @Just a@ indicates that the variable is @a@ in the solution
--- @Nothing@ indicates that the variable is not important for the solution.
--- both @True@ and @False@ are valid assignments.
--- 
--- Working with this representation may be cumbersome. If you do not want to
--- deal with unimportant variables pass your solutions through @expandSolution@.
-type Val = Maybe Bool
-
 -- | A solution of a SAT-Solver.
 -- The keys contain both variables and helpers.
 -- If you don't care about helpers use @withoutHelpers@
-type Solution v = Map.Map (Var v) Val
+type Solution v = Map.Map (Var v) LBool
 
 -- | A conflict of a SAT-Solver.
 -- The @Set@ contains all conflicting variables.
@@ -138,11 +129,11 @@ class (MSolver s) => Solver s where
     solveAll_ :: (Clauses s c, VariableType c ~ v) => Proxy (s v) -> c -> [Map.Map v Bool]
     solveAll_ m c = map withoutHelpers $ expandSolution =<< solveAll m c
 
-expandSolution :: (Traversable t, Applicative f, Monoid (f Bool), Monoid (f (Maybe Bool))) => t (Maybe Bool) -> f (t Bool)
+expandSolution :: (Traversable t, Applicative f, Monoid (f Bool), Monoid (f (Maybe Bool))) => t LBool -> f (t Bool)
 {-# SPECIALIZE expandSolution :: Solution v -> [Map.Map (Var v) Bool] #-}
 {-# SPECIALIZE expandSolution :: Solution v -> First (Map.Map (Var v) Bool) #-}
 {-# SPECIALIZE expandSolution :: Solution v -> Last (Map.Map (Var v) Bool) #-}
-expandSolution = traverse $ maybe (pure True <> pure False) pure
+expandSolution = traverse $  (pure True <> pure False) toBool
 
 withoutHelpers :: Ord v => Map.Map (Var v) r -> Map.Map v r
 withoutHelpers = Map.mapKeys (\(Right v) -> v) . Map.filterWithKey (const . isRight)

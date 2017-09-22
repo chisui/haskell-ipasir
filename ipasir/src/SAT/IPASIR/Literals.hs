@@ -8,6 +8,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 module SAT.IPASIR.Literals
     ( Lit (..)
+    , LBool (..)
     , lit
     , fromBool
     , neg
@@ -22,6 +23,21 @@ import Data.Traversable
 
 import Control.Comonad
 import Control.Monad
+
+-- | A solution for a single variable.
+-- @Just a@ indicates that the variable is @a@ in the solution
+-- @Nothing@ indicates that the variable is not important for the solution.
+-- both @True@ and @False@ are valid assignments.
+-- 
+-- Working with this representation may be cumbersome. If you do not want to
+-- deal with unimportant variables pass your solutions through @expandSolution@.
+data LBool = LFalse | LUndef | LTrue deriving (Eq,Ord,Bounded)
+
+instance Show (LBool) where
+    show LTrue  = "1"
+    show LFalse = "0"
+    show LUndef = "?"
+
 
 -- | A literal is a positive or negative atom.
 data Lit a
