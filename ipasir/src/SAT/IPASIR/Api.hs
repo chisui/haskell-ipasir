@@ -8,6 +8,7 @@ module SAT.IPASIR.Api
     , ipasirAssume
     , ipasirSolve
     , ipasirVal
+    , ipasirSolution
     , ipasirFailed
     , ipasirConflict
     , ipasirAddClause
@@ -171,7 +172,7 @@ class Ord a => Ipasir a where
     
     {-|
      ipasirSolution' gives you a Vector with a 'LUndef' at position 0 and the truth values on
-     every other position. The offset at Position 0 makes the following property true:
+     every other position. The offset makes the following property true:
      
      @
         ipasirSolution' s ! i == ipasirVal' s (toEnum i) -- ignored the IO-monad     @
@@ -290,6 +291,15 @@ ipasirVal solver i = do
     state <- readVar solverState $ ipasirGetID solver
     case state of
         SAT -> ipasirVal' solver i
+        x   -> error $ "You cant read a solution here. The solver is in the state " 
+                        ++ show x ++ " but has to be in the state " ++ show SAT
+                        
+-- | Safe version of 'ipasirSolution''
+ipasirSolution :: Ipasir a => a -> IO (Vec.Vector LBool)
+ipasirSolution solver = do
+    state <- readVar solverState $ ipasirGetID solver
+    case state of
+        SAT -> ipasirSolution' solver
         x   -> error $ "You cant read a solution here. The solver is in the state " 
                         ++ show x ++ " but has to be in the state " ++ show SAT
 

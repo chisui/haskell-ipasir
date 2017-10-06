@@ -15,6 +15,8 @@ module SAT.IPASIR.Literals
     , isPositive
     , intToLit
     , litToInt
+    , lBool2MBool
+    , mBool2LBool
     ) where
 
 import Data.String (IsString(..))
@@ -37,7 +39,14 @@ instance Show (LBool) where
     show LTrue  = "1"
     show LFalse = "0"
     show LUndef = "?"
+    
+lBool2MBool LUndef = Nothing
+lBool2MBool LTrue  = Just True
+lBool2MBool _      = Just False
 
+mBool2LBool Nothing     = LUndef
+mBool2LBool (Just True) = LTrue
+mBool2LBool _           = LFalse
 
 -- | A literal is a positive or negative atom.
 data Lit a

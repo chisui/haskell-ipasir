@@ -105,7 +105,7 @@ mSolveAllForVars' ls = do
                 extract :: ISolution Word -> Word -> Maybe (Lit Word)
                 extract sol i = neg . (`lit` i) <$> val
                     where
-                        val = sol Map.! i
+                        val = lBool2MBool $ sol Map.! i
                 sign' True = -1
                 sign' False = 1
 
@@ -140,7 +140,7 @@ mapLits :: Ord v => VarCache v -> Map.Map Word a -> Map.Map (Var v) a
 mapLits vc = Map.mapKeys (intToVar vc)
 
 -- |ISolution is comparable to 'Solution' but without helper variabes. 
-type ISolution v = Map.Map v Val
+type ISolution v = Map.Map v LBool
 -- |IConflict is comparable to 'Conflict' but without helper variabes. 
 type IConflict v = Set.Set v
 -- |IESolution is comparable to 'ESolution' but without helper variabes. 
@@ -157,7 +157,7 @@ mSolveInt (IpasirSolver s vc) = do
         LFalse -> Left <$> makeConflict (ipasirFailed s)
     where
         makeConflict :: (Word -> IO Bool) -> IO (Set.Set Word)
-        makeConflict ioOp = Map.keysSet . Map.filter id <$> makeSolution ioOp
+        makeConflict ioOp = undefined -- Map.keysSet . Map.filter id <$> makeSolution ioOp
         makeSolution :: Vec.Vector LBool -> Map.Map Word LBool
-        makeSolution = Map.fromList . toList . Vec.imap (\i val -> (toEnum i, val))
+        makeSolution = undefined -- Map.fromList . toList . Vec.imap (\i val -> (toEnum i, val))
 

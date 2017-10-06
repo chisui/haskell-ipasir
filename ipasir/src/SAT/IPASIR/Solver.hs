@@ -129,11 +129,12 @@ class (MSolver s) => Solver s where
     solveAll_ :: (Clauses s c, VariableType c ~ v) => Proxy (s v) -> c -> [Map.Map v Bool]
     solveAll_ m c = map withoutHelpers $ expandSolution =<< solveAll m c
 
-expandSolution :: (Traversable t, Applicative f, Monoid (f Bool), Monoid (f (Maybe Bool))) => t LBool -> f (t Bool)
-{-# SPECIALIZE expandSolution :: Solution v -> [Map.Map (Var v) Bool] #-}
-{-# SPECIALIZE expandSolution :: Solution v -> First (Map.Map (Var v) Bool) #-}
-{-# SPECIALIZE expandSolution :: Solution v -> Last (Map.Map (Var v) Bool) #-}
-expandSolution = traverse $  (pure True <> pure False) toBool
+expandSolution :: (Monoid (f Bool), Traversable t, Applicative f) => t LBool -> f (t Bool)
+expandSolution = traverse h
+    where
+        h LUndef = pure True <> pure False
+        h LTrue  = pure True
+        h LFalse = pure False
 
 withoutHelpers :: Ord v => Map.Map (Var v) r -> Map.Map v r
 withoutHelpers = Map.mapKeys (\(Right v) -> v) . Map.filterWithKey (const . isRight)
