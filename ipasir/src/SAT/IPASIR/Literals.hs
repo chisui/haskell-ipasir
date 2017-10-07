@@ -40,6 +40,16 @@ instance Show (LBool) where
     show LFalse = "0"
     show LUndef = "?"
     
+instance Enum (LBool) where
+    fromEnum LTrue  =  1
+    fromEnum LFalse = -1
+    fromEnum LUndef = 0
+    
+    toEnum i
+        | i == 0    = LUndef
+        | i <  0    = LFalse
+        | otherwise = LTrue
+    
 lBool2MBool LUndef = Nothing
 lBool2MBool LTrue  = Just True
 lBool2MBool _      = Just False

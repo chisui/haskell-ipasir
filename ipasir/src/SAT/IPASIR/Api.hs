@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, TypeFamilies, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, UndecidableInstances, TupleSections #-}
 
 module SAT.IPASIR.Api 
     ( Ipasir (..)
@@ -18,6 +18,10 @@ module SAT.IPASIR.Api
     , ipasirValBool
     , ipasirAddClauseLit
     , ipasirAddClausesLit
+    , unfoldSolving
+    , iterativeSolving
+    , allSolutionsIn
+    , allSolutions
     ) where
 
 import Control.Monad
@@ -28,6 +32,7 @@ import Data.Word
 import qualified Data.Set as Set
 import System.Random
 import System.IO.Unsafe
+import Data.Bifunctor
 
 import SAT.IPASIR.EnvironmentVariable
 import SAT.IPASIR.Literals
@@ -62,9 +67,9 @@ instance Ipasir (TestSolver) where
     This class is meant to be implemented using foreign function interfaces to the actual C solver.
     In most cases the type @a@ will be a @newtype@ around a 'ForeignPtr'.
 -}
-class Ord a => Ipasir a where
+class Ipasir a where
     {-# MINIMAL ipasirGetID, ipasirInit', ipasirAssume', ipasirSolve',
-                ( ipasirAdd' | ipasirAddClause'), 
+                ( ipasirAdd' | ipasirAddClause'),
                 ( ipasirVal' | ipasirSolution' ),
                 ( ipasirFailed' | ipasirConflict' ) #-}
     {-|
@@ -204,8 +209,8 @@ class Ord a => Ipasir a where
     ipasirFailed' solver var = Vec.elem var <$> ipasirConflict' solver
     
     {-|
-      returns every variable, which was involved in the found conflict. The returned
-      vector is sorted. It holds that
+      Returns every variable, which was involved in the found conflict. The returned
+      vector is sorted and distinct. It holds that
       
       @
         elem i (ipasirConflict' s) == ipasirFailed' s i -- ignored the IO-monad      @
@@ -229,7 +234,6 @@ class Ord a => Ipasir a where
      The default implementation adds each literal of the clause by calling 'ipasirAdd' and finally adding a 'LUndef'.
     -}
     ipasirAddClause' :: a -> [Int] -> IO ()
-
     ipasirAddClause' s [] = ipasirAdd' s 0
     ipasirAddClause' s (l:ls) = do
         ipasirAdd' s l
@@ -381,7 +385,37 @@ ipasirAddClauseLit s = ipasirAddClause s . map litToInt
 ipasirAddClausesLit :: Ipasir a => a -> [[Lit Word]] -> IO ()
 ipasirAddClausesLit s clauses = mapM_ (ipasirAddClauseLit s) clauses
 
-{-
-iterativeSolving :: Ipasir a => a -> b -> (Vector LBool -> b -> ([[Int]],b) ) -> (Set Word, [[Int]])
-iterativeSolving solver v f = undefined
--}
+-- | @unfoldSolving solver f b@ solves iterative until the solver blocks. @f@ generates new clauses in each step. The new clauses
+-- | can depend on the old solution (first parameter of f) and a general state (second parameter). The start state is given in @b@.
+-- | The return value is a tuple of the conflict, which optains after the solver blocked and the solutions. The solutions start with
+-- | the first itetation, which makes using laziness possible. 
+unfoldSolving :: Ipasir a => a -> (Vec.Vector LBool -> b -> ([[Int]],b) ) -> b -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
+unfoldSolving solver f b = do
+    state <- ipasirSolve solver
+    case state of
+        LUndef -> return (Nothing, [])
+        LFalse -> do
+                conflict <- ipasirConflict' solver
+                return (Just $ Set.fromDistinctAscList $ Vec.toList conflict ,[])
+        LTrue  -> do
+            solution <- ipasirSolution' solver
+            let (clauses,newB) = f solution b
+            ipasirAddClauses solver clauses
+            second (solution:) <$> unfoldSolving solver f newB
+
+-- | Same as 'unfoldSolving' but without a general state.
+iterativeSolving :: Ipasir a => a -> (Vec.Vector LBool -> [[Int]]) -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
+iterativeSolving solver f = unfoldSolving solver (const . (,()) . f) ()
+
+-- | Returns all possible solutions for the variables given in the second paramter.
+allSolutionsIn :: Ipasir a => a -> [Word] -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
+allSolutionsIn solver vars = iterativeSolving solver newClause
+    where
+        newClause sol = [filter (/=0) $ map ((\v -> (*v) $ negate $ fromEnum $ sol Vec.! v ) . fromEnum) vars]
+
+-- | Returns all possible solutions.
+allSolutions :: Ipasir a => a -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
+allSolutions solver = iterativeSolving solver newClause
+    where
+        newClause sol = [Vec.toList $ Vec.filter (/=0) $ Vec.imap (\i b -> (*i) $ negate $ fromEnum b) sol]
+

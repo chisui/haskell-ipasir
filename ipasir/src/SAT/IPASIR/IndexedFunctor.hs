@@ -17,10 +17,10 @@ import qualified Data.List.NonEmpty as NE
 import qualified Control.Monad.Identity as ID
 import qualified Data.Array as Array
 
-class Functor f => IndexedFunctor i f | f -> i where
-    imap      :: (i -> a -> b) -> f a -> f b
-    (!)       :: f a -> i -> a
-    union     :: f a -> f a -> f a
+class (Functor f, Eq i) => IndexedFunctor i f | f -> i where
+    imap        :: (i -> a -> b) -> f a -> f b
+    (!)         :: f a -> i -> a
+    union       :: f a -> f a -> f a
     fromKeyList :: [(i,a)] -> f a
 
 instance IndexedFunctor Int [] where
@@ -125,6 +125,8 @@ class IndexedFunctor i f => IndexSpaceFunctor i f where
     elems       :: f a -> [a]
     elems = map snd . toKeyList
     size :: Enum e => f a -> e
+    convertIndexFunctor :: IndexedFunctor i g => f a -> g a
+    convertIndexFunctor = fromKeyList . toKeyList
 
 instance IndexSpaceFunctor Int [] where
     toKeyList = zip [0..] 
@@ -182,11 +184,11 @@ instance Eq k => IndexSpaceFunctor k ((,) k) where
     elems     = return . snd
     size _    = toEnum 1
 
-
 class IndexedFunctor Int f => IntIndexedFunctor f where
     generate :: Int -> (Int -> a) -> f a
     add      :: a -> f a -> f a
-
+    regenerate :: IndexSpaceFunctor Int g => g a -> f a
+    regenerate f = generate (size f) (f!)
     
     
 
