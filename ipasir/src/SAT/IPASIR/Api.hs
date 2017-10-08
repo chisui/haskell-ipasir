@@ -1,4 +1,10 @@
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, TypeFamilies, UndecidableInstances, TupleSections #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-} 
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE BangPatterns #-}
 
 module SAT.IPASIR.Api 
     ( Ipasir (..)
@@ -51,6 +57,11 @@ clauseCreator = unsafePerformIO newEnv
 
 solverState :: Env IDType SolverState
 solverState = unsafePerformIO newEnv
+
+executionProcess :: Env IDType [Stuff]
+executionProcess = unsafePerformIO newEnv
+
+data Stuff = forall a. (Show a) => Stuff a
 
 {-|
     Class that models the <https://github.com/biotomas/ipasir/blob/master/ipasir.h ipasir.h> interface.
@@ -265,6 +276,17 @@ class Ipasir a where
         ipasirAddClause'  s l
         ipasirAddClauses' s ls
 
+ipasirSeqAll :: Ipasir a => a -> IO ()
+ipasirSeqAll solver = do
+    let s = ipasirGetID solver
+    !ex <- readVar executionProcess s
+    
+    mapM_ (\(Stuff a) -> print a) ex
+    
+--    let !newSolver = foldl (flip seq) solver ex
+    writeVar executionProcess s []
+    return ()
+
 -- | State-safe version of 'ipasirInit''
 ipasirInit :: Ipasir a => IO a
 ipasirInit = do
@@ -273,11 +295,13 @@ ipasirInit = do
     writeVar maxVar s 0
     writeVar clauseCreator s []
     writeVar solverState s INPUT
+    writeVar executionProcess s []
     return solver
 
 -- | State-safe version of 'ipasirAdd''
 ipasirAdd :: Ipasir a => a -> Int -> IO ()
 ipasirAdd solver lit = do
+    ipasirSeqAll solver
     modifyMaxVar solver $ abs lit
     setSolverState solver INPUT
     ipasirAdd' solver lit
@@ -285,12 +309,14 @@ ipasirAdd solver lit = do
 -- | State-safe version of 'ipasirAssume''
 ipasirAssume :: Ipasir a => a -> Int -> IO ()
 ipasirAssume solver lit = do
+    ipasirSeqAll solver
     setSolverState solver INPUT
     ipasirAssume' solver lit
 
 -- | State-safe version of 'ipasirSolve''
 ipasirSolve :: Ipasir a => a -> IO LBool
 ipasirSolve solver = do
+    ipasirSeqAll solver
     res <- ipasirSolve' solver
     case res of
         LUndef -> setSolverState solver INPUT
@@ -302,6 +328,7 @@ ipasirSolve solver = do
 ipasirVal :: Ipasir a => a -> Word -> IO Int
 ipasirVal _ 0      = return 0
 ipasirVal solver i = do
+    ipasirSeqAll solver
     state <- readVar solverState $ ipasirGetID solver
     case state of
         SAT -> ipasirVal' solver i
@@ -311,6 +338,7 @@ ipasirVal solver i = do
 -- | State-safe version of 'ipasirSolution''
 ipasirSolution :: Ipasir a => a -> IO (Vec.Vector LBool)
 ipasirSolution solver = do
+    ipasirSeqAll solver
     state <- readVar solverState $ ipasirGetID solver
     case state of
         SAT -> ipasirSolution' solver
@@ -320,6 +348,7 @@ ipasirSolution solver = do
 -- | State-safe version of 'ipasirFailed''
 ipasirFailed :: Ipasir a => a -> Word -> IO Bool
 ipasirFailed solver i = do
+    ipasirSeqAll solver
     state <- readVar solverState $ ipasirGetID solver
     case state of
         UNSAT -> ipasirFailed' solver i
@@ -329,6 +358,7 @@ ipasirFailed solver i = do
 -- | State-safe version of 'ipasirConflict''
 ipasirConflict :: Ipasir a => a -> IO (Vec.Vector (Word))
 ipasirConflict solver = do
+    ipasirSeqAll solver
     state <- readVar solverState $ ipasirGetID solver
     case state of
         UNSAT -> ipasirConflict' solver
@@ -338,6 +368,7 @@ ipasirConflict solver = do
 -- | State-safe version of 'ipasirAddClause''
 ipasirAddClause :: Ipasir a => a -> [Int] -> IO ()
 ipasirAddClause solver clause = do
+    ipasirSeqAll solver
     noClauseStarted <- null <$> readVar clauseCreator (ipasirGetID solver)
     if noClauseStarted
         then do
@@ -349,6 +380,7 @@ ipasirAddClause solver clause = do
 -- | State-safe version of 'ipasirAddClauses''
 ipasirAddClauses :: Ipasir a => a -> [[Int]] -> IO ()
 ipasirAddClauses solver cnf = do
+    ipasirSeqAll solver
     noClauseStarted <- null <$> readVar clauseCreator (ipasirGetID solver)
     if noClauseStarted
         then do
@@ -398,18 +430,26 @@ ipasirAddClausesLit s clauses = mapM_ (ipasirAddClauseLit s) clauses
 -- | The return value is a tuple of the conflict, which optains after the solver blocked and the solutions. The solutions start with
 -- | the first itetation, which makes using laziness possible. 
 ipasirUnfoldSolving :: Ipasir a => a -> (Vec.Vector LBool -> b -> ([[Int]],b) ) -> b -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
-ipasirUnfoldSolving solver f b = unsafeInterleaveIO $ do
-    state <- ipasirSolve solver
-    case state of
-        LUndef -> return (Nothing, [])
-        LFalse -> do
-                conflict <- ipasirConflict' solver
-                return (Just $ Set.fromDistinctAscList $ Vec.toList conflict ,[])
-        LTrue  -> do
-            solution <- ipasirSolution' solver
-            let (clauses,newB) = trace "solved" $ f solution b
-            ipasirAddClauses solver clauses
-            second (solution:) <$> ipasirUnfoldSolving solver f newB
+ipasirUnfoldSolving solver f b = do
+    (c,s) <- ipasirUnfoldSolving' solver f b
+    modifyVar executionProcess sID ((Stuff c):)
+    return (c,s)
+    where
+        sID = ipasirGetID solver
+        ipasirUnfoldSolving' solver f b = unsafeInterleaveIO $ do
+            state <- ipasirSolve' solver
+            case state of
+                LUndef -> do
+                    return (Nothing, [])
+                LFalse -> do
+                        conflict <- ipasirConflict' solver
+                        writeVar solverState sID UNSAT
+                        return (Just $ Set.fromDistinctAscList $ Vec.toList conflict ,[])
+                LTrue  -> do
+                    solution <- ipasirSolution' solver
+                    let (clauses,newB) = trace "solved" $ f solution b
+                    ipasirAddClauses' solver clauses
+                    second (solution:) <$> ipasirUnfoldSolving' solver f newB
 
 -- | Same as 'unfoldSolving' but without a general state.
 ipasirIterativeSolving :: Ipasir a => a -> (Vec.Vector LBool -> [[Int]]) -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
