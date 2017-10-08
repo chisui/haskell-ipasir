@@ -9,8 +9,8 @@ testAllSolutionsIn = do
     ipasirAddClauses solver cnf1
     (c,s) <- ipasirAllSolutions solver
     print $ s !! 0
-    c' <- ipasirConflict solver
-    print c'
+--    c' <- ipasirConflict solver
+--    print c'
     --print c
     return ()
 

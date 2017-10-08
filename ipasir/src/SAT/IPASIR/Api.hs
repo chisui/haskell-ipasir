@@ -61,7 +61,7 @@ solverState = unsafePerformIO newEnv
 executionProcess :: Env IDType (Maybe Stuff)
 executionProcess = unsafePerformIO newEnv
 
-data Stuff = forall a. (Show a, NFData a) => Stuff a
+data Stuff = forall a. (NFData a) => Stuff a
 
 instance NFData (Stuff) where
     rnf (Stuff x) = rnf x
