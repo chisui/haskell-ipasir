@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, TypeFamilies, UndecidableInstances, TupleSections #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, TypeFamilies, UndecidableInstances, TupleSections #-}
 
 module SAT.IPASIR.Api 
     ( Ipasir (..)
@@ -18,10 +18,11 @@ module SAT.IPASIR.Api
     , ipasirValBool
     , ipasirAddClauseLit
     , ipasirAddClausesLit
-    , unfoldSolving
-    , iterativeSolving
-    , allSolutionsIn
-    , allSolutions
+    , ipasirUnfoldSolving
+    , ipasirIterativeSolving
+    , ipasirAllSolutionsIn
+    , ipasirAllSolutions
+    , ipasirAllSolutionsC
     ) where
 
 import Control.Monad
@@ -33,6 +34,7 @@ import qualified Data.Set as Set
 import System.Random
 import System.IO.Unsafe
 import Data.Bifunctor
+import Debug.Trace
 
 import SAT.IPASIR.EnvironmentVariable
 import SAT.IPASIR.Literals
@@ -40,59 +42,47 @@ import SAT.IPASIR.Literals
 data SolverState = INPUT | SAT | UNSAT
     deriving (Show,Eq)
 
-maxVar :: Env Word Word
+type IDType = Word
+
+maxVar :: Env IDType Word
 maxVar = unsafePerformIO newEnv
 
-clauseCreator :: Env Word [Int]
+clauseCreator :: Env IDType [Int]
 clauseCreator = unsafePerformIO newEnv
 
-solverState :: Env Word SolverState
+solverState :: Env IDType SolverState
 solverState = unsafePerformIO newEnv
-
-newtype TestSolver = TestSolver Int deriving (Show,Eq,Ord)
-
-instance Ipasir (TestSolver) where
-    ipasirSignature (TestSolver i) = return $ "TestSolver " ++ show i
-    ipasirInit'     = TestSolver <$> System.Random.randomIO
-  --  ipasirAdd  =
-    ipasirSolve' _    = return LUndef
-    ipasirVal' _ _    = return 0
-    ipasirFailed' _ _ = return False
-    ipasirAssume' _ _ = undefined
-    ipasirAddClause'  = undefined
-    ipasirGetID (TestSolver i) = fromInteger $ toInteger i
 
 {-|
     Class that models the <https://github.com/biotomas/ipasir/blob/master/ipasir.h ipasir.h> interface.
     This class is meant to be implemented using foreign function interfaces to the actual C solver.
     In most cases the type @a@ will be a @newtype@ around a 'ForeignPtr'.
+    
+    A solver can be in different states (see 'SolverState'). Notice, that every function ending with
+    a dash (like 'ipasirAdd'') is not state secure. That means: It is not checked if the solver is in 
+    a valid state to execute the function and the state doesn\'t update.
+    
+    These state unsafe functions are just for the devolopers, who wants to instantiate more solvers.
+    Dont use these functions from outside. Every state unsafe functions has a pendant without a dash.
 -}
 class Ipasir a where
     {-# MINIMAL ipasirGetID, ipasirInit', ipasirAssume', ipasirSolve',
                 ( ipasirAdd' | ipasirAddClause'),
                 ( ipasirVal' | ipasirSolution' ),
                 ( ipasirFailed' | ipasirConflict' ) #-}
-    {-|
-     Every initialized Solver needs a unique ID. The ID is mostly the pointer to to solver.
-    -}
-    ipasirGetID :: a -> Word
+                
+    -- | Every initialized Solver needs a unique ID. The ID is mostly the pointer to to solver.
+    ipasirGetID :: a -> IDType
     
-    {-|
-     Returns the maximal variable.  
-    -}
+    -- | Returns the maximal variable.  
     ipasirMaxVar :: a -> IO Word
     ipasirMaxVar solver = readVar maxVar $ ipasirGetID solver
     
-    {-|
-     Returns the maximal variable.  
-    -}
+    -- | Returns the maximal variable.  
     ipasirState:: a -> IO SolverState
     ipasirState solver = readVar solverState $ ipasirGetID solver
 
-    {-|
-     Return the name and the version of the incremental @SAT@
-     solving library.
-    -}
+    -- | Return the name and the version of the incremental @SAT@ solving library.
     ipasirSignature :: a -> IO String
     ipasirSignature solver = return $ "Solver with ID " ++ show (ipasirGetID solver)
 
@@ -105,6 +95,9 @@ class Ipasir a where
      * State after: @INPUT@
 
      This function also has to take care of deleding the solver when it gets carbage collected.
+     
+     Since this function is not state safe it is not checked if the solver is in the required state
+     and the solver does not switch to the \"State after\" state from above.
     -}
     ipasirInit' :: IO a
 
@@ -122,6 +115,8 @@ class Ipasir a where
      INT_MAX and strictly larger than INT_MIN (to avoid
      negation overflow).  This applies to all the literal
      arguments in API functions.
+          
+     Warning: Not state safe.
     -}
     ipasirAdd' :: a -> Int -> IO ()
     ipasirAdd' solver 0  = do
@@ -140,6 +135,8 @@ class Ipasir a where
 
      * Required state: @INPUT@ or @SAT@ or @UNSAT@
      * State after: @INPUT@
+          
+     Warning: Not state safe.
     -}
     ipasirAssume' :: a -> Int -> IO ()
 
@@ -152,6 +149,8 @@ class Ipasir a where
 
      * Required state: @INPUT@ or @SAT@ or @UNSAT@
      * State after: @INPUT@ or @SAT@ or @UNSAT@
+          
+     Warning: Not state safe.
     -}
     ipasirSolve' :: a -> IO LBool
 
@@ -164,6 +163,8 @@ class Ipasir a where
 
      * Required state: @SAT@
      * State after: @SAT@
+          
+     Warning: Not state safe.
     -}
     ipasirVal' :: a -> Word -> IO Int
     ipasirVal' solver index = do
@@ -184,6 +185,8 @@ class Ipasir a where
 
      * Required state: @SAT@
      * State after: @SAT@
+          
+     Warning: Not state safe.
     -}
     ipasirSolution' :: a -> IO (Vec.Vector LBool)
     ipasirSolution' solver = do
@@ -204,6 +207,8 @@ class Ipasir a where
 
      * Required state: @UNSAT@
      * State after: @UNSAT@
+          
+     Warning: Not state safe.
     -}
     ipasirFailed' :: a -> Word -> IO Bool
     ipasirFailed' solver var = Vec.elem var <$> ipasirConflict' solver
@@ -217,6 +222,8 @@ class Ipasir a where
       
       * Required state: @UNSAT@
       * State after: @UNSAT@
+           
+      Warning: Not state safe.
     -}
     ipasirConflict' :: a -> IO (Vec.Vector Word)
     ipasirConflict' solver = do
@@ -232,6 +239,8 @@ class Ipasir a where
      * State after: @INPUT@
 
      The default implementation adds each literal of the clause by calling 'ipasirAdd' and finally adding a 'LUndef'.
+          
+     Warning: Not state safe.
     -}
     ipasirAddClause' :: a -> [Int] -> IO ()
     ipasirAddClause' s [] = ipasirAdd' s 0
@@ -248,6 +257,8 @@ class Ipasir a where
      * State after: @INPUT@
 
      The default implementation adds each clause by calling 'ipasirAddClause'.
+          
+     Warning: Not state safe.
     -}
     ipasirAddClauses' :: a -> [[Int]] -> IO ()
     ipasirAddClauses' _ [] = return ()
@@ -255,7 +266,7 @@ class Ipasir a where
         ipasirAddClause'  s l
         ipasirAddClauses' s ls
 
--- | Safe version of 'ipasirInit''
+-- | State-safe version of 'ipasirInit''
 ipasirInit :: Ipasir a => IO a
 ipasirInit = do
     solver <- ipasirInit'
@@ -265,20 +276,20 @@ ipasirInit = do
     writeVar solverState s INPUT
     return solver
 
--- | Safe version of 'ipasirAdd''
+-- | State-safe version of 'ipasirAdd''
 ipasirAdd :: Ipasir a => a -> Int -> IO ()
 ipasirAdd solver lit = do
     modifyMaxVar solver $ abs lit
     setSolverState solver INPUT
     ipasirAdd' solver lit
 
--- | Safe version of 'ipasirAssume''
+-- | State-safe version of 'ipasirAssume''
 ipasirAssume :: Ipasir a => a -> Int -> IO ()
 ipasirAssume solver lit = do
     setSolverState solver INPUT
     ipasirAssume' solver lit
 
--- | Safe version of 'ipasirSolve''
+-- | State-safe version of 'ipasirSolve''
 ipasirSolve :: Ipasir a => a -> IO LBool
 ipasirSolve solver = do
     res <- ipasirSolve' solver
@@ -288,7 +299,7 @@ ipasirSolve solver = do
         LFalse -> setSolverState solver UNSAT
     return res
 
--- | Safe version of 'ipasirVal''
+-- | State-safe version of 'ipasirVal''
 ipasirVal :: Ipasir a => a -> Word -> IO Int
 ipasirVal _ 0      = return 0
 ipasirVal solver i = do
@@ -298,7 +309,7 @@ ipasirVal solver i = do
         x   -> error $ "You cant read a solution here. The solver is in the state " 
                         ++ show x ++ " but has to be in the state " ++ show SAT
                         
--- | Safe version of 'ipasirSolution''
+-- | State-safe version of 'ipasirSolution''
 ipasirSolution :: Ipasir a => a -> IO (Vec.Vector LBool)
 ipasirSolution solver = do
     state <- readVar solverState $ ipasirGetID solver
@@ -307,7 +318,7 @@ ipasirSolution solver = do
         x   -> error $ "You cant read a solution here. The solver is in the state " 
                         ++ show x ++ " but has to be in the state " ++ show SAT
 
--- | Safe version of 'ipasirFailed''
+-- | State-safe version of 'ipasirFailed''
 ipasirFailed :: Ipasir a => a -> Word -> IO Bool
 ipasirFailed solver i = do
     state <- readVar solverState $ ipasirGetID solver
@@ -316,7 +327,7 @@ ipasirFailed solver i = do
         x     -> error $ "You cant read a conflict here. The solver is in the state " 
                           ++ show x ++ " but has to be in the state " ++ show UNSAT
 
--- | Safe version of 'ipasirConflict''
+-- | State-safe version of 'ipasirConflict''
 ipasirConflict :: Ipasir a => a -> IO (Vec.Vector (Word))
 ipasirConflict solver = do
     state <- readVar solverState $ ipasirGetID solver
@@ -325,7 +336,7 @@ ipasirConflict solver = do
         x     -> error $ "You cant read a conflict here. The solver is in the state " 
                           ++ show x ++ " but has to be in the state " ++ show UNSAT
 
--- | Safe version of 'ipasirAddClause''
+-- | State-safe version of 'ipasirAddClause''
 ipasirAddClause :: Ipasir a => a -> [Int] -> IO ()
 ipasirAddClause solver clause = do
     noClauseStarted <- null <$> readVar clauseCreator (ipasirGetID solver)
@@ -336,7 +347,7 @@ ipasirAddClause solver clause = do
             ipasirAddClause' solver clause
         else error "You cant call ipasirAddClause if you started a clause with ipasirAdd"
 
--- | Safe version of 'ipasirAddClauses''
+-- | State-safe version of 'ipasirAddClauses''
 ipasirAddClauses :: Ipasir a => a -> [[Int]] -> IO ()
 ipasirAddClauses solver cnf = do
     noClauseStarted <- null <$> readVar clauseCreator (ipasirGetID solver)
@@ -347,10 +358,8 @@ ipasirAddClauses solver cnf = do
             ipasirAddClauses' solver cnf
         else error "You cant call ipasirAddClauses if you started a clause with ipasirAdd"
 
-{-|
-    Sets the maximal variable of the solver on second parameter. Does nothing, if the value
-    is already greater or equals.
--}
+-- | Sets the maximal variable of the solver on second parameter. Does nothing, if the value
+-- | is already greater or equals.
 modifyMaxVar :: (Ipasir a, Enum e) => a -> e -> IO ()
 modifyMaxVar solver var = modifyVar maxVar (ipasirGetID solver) (max (toEnum (fromEnum var)))
 
@@ -358,13 +367,13 @@ modifyMaxVar solver var = modifyVar maxVar (ipasirGetID solver) (max (toEnum (fr
 setSolverState :: Ipasir a => a -> SolverState -> IO ()
 setSolverState solver state = writeVar solverState (ipasirGetID solver) state
 
--- | Same as 'ipasirAdd' but working on @Maybe (Lit Word)@
-ipasirAddLit :: Ipasir a => a -> Maybe (Lit Word) -> IO ()
+-- | Same as 'ipasirAdd' but working on @Maybe (IntLiteral)@
+ipasirAddLit :: (Ipasir a, IntLiteral il) => a -> Maybe il -> IO ()
 ipasirAddLit s Nothing    = ipasirAdd s 0
 ipasirAddLit s (Just lit) = ipasirAdd s $ litToInt lit
 
--- | Same as 'ipasirAssume' but working on @Lit Word@
-ipasirAssumeLit :: Ipasir a => a -> Lit Word -> IO ()
+-- | Same as 'ipasirAssume' but working on 'IntLiteral'
+ipasirAssumeLit :: (Ipasir a, IntLiteral il) => a -> il -> IO ()
 ipasirAssumeLit s lit = ipasirAssume s $ litToInt lit
         
 -- | Returns @LTrue@ iff the variable is true, @LFalse@ iff the variable is false and
@@ -377,20 +386,20 @@ toMBool LT = LTrue
 toMBool EQ = LUndef
 toMBool GT = LFalse
 
--- | Same as 'ipasirAddClause' but working on @Lit Word@
-ipasirAddClauseLit :: Ipasir a => a -> [Lit Word] -> IO ()
+-- | Same as 'ipasirAddClause' but working on 'IntLiteral'
+ipasirAddClauseLit :: (Ipasir a, IntLiteral il) => a -> [il] -> IO ()
 ipasirAddClauseLit s = ipasirAddClause s . map litToInt
 
--- | Same as 'ipasirAddClauses' but working on @Lit Word@
-ipasirAddClausesLit :: Ipasir a => a -> [[Lit Word]] -> IO ()
+-- | Same as 'ipasirAddClauses' but working on 'IntLiteral'
+ipasirAddClausesLit :: (Ipasir a, IntLiteral il) => a -> [[il]] -> IO ()
 ipasirAddClausesLit s clauses = mapM_ (ipasirAddClauseLit s) clauses
 
 -- | @unfoldSolving solver f b@ solves iterative until the solver blocks. @f@ generates new clauses in each step. The new clauses
 -- | can depend on the old solution (first parameter of f) and a general state (second parameter). The start state is given in @b@.
 -- | The return value is a tuple of the conflict, which optains after the solver blocked and the solutions. The solutions start with
 -- | the first itetation, which makes using laziness possible. 
-unfoldSolving :: Ipasir a => a -> (Vec.Vector LBool -> b -> ([[Int]],b) ) -> b -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
-unfoldSolving solver f b = do
+ipasirUnfoldSolving :: Ipasir a => a -> (Vec.Vector LBool -> b -> ([[Int]],b) ) -> b -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
+ipasirUnfoldSolving solver f b = do
     state <- ipasirSolve solver
     case state of
         LUndef -> return (Nothing, [])
@@ -399,23 +408,47 @@ unfoldSolving solver f b = do
                 return (Just $ Set.fromDistinctAscList $ Vec.toList conflict ,[])
         LTrue  -> do
             solution <- ipasirSolution' solver
-            let (clauses,newB) = f solution b
+            let (clauses,newB) = trace "solved" $ f solution b
             ipasirAddClauses solver clauses
-            second (solution:) <$> unfoldSolving solver f newB
+            second (solution:) <$> ipasirUnfoldSolving solver f newB
+            
+ipasirUnfoldSolvingC :: Ipasir a => a -> (Vec.Vector LBool -> b -> ([[Int]],b) ) -> b -> IO [Vec.Vector LBool]
+ipasirUnfoldSolvingC solver f b = do
+    state <- ipasirSolve solver
+    case state of
+        LUndef -> return []
+        LFalse -> return []
+        LTrue  -> do
+            solution <- ipasirSolution' solver
+            let (clauses,newB) = trace "solved" $ f solution b
+            ipasirAddClauses solver clauses
+            (solution:) <$> ipasirUnfoldSolvingC solver f newB
 
 -- | Same as 'unfoldSolving' but without a general state.
-iterativeSolving :: Ipasir a => a -> (Vec.Vector LBool -> [[Int]]) -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
-iterativeSolving solver f = unfoldSolving solver (const . (,()) . f) ()
+ipasirIterativeSolving :: Ipasir a => a -> (Vec.Vector LBool -> [[Int]]) -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
+ipasirIterativeSolving solver f = ipasirUnfoldSolving solver (const . (,()) . f) ()
+
+-- | Same as 'unfoldSolving' but without a general state.
+ipasirIterativeSolvingC :: Ipasir a => a -> (Vec.Vector LBool -> [[Int]]) -> IO [Vec.Vector LBool]
+ipasirIterativeSolvingC solver f = ipasirUnfoldSolvingC solver (const . (,()) . f) ()
+
 
 -- | Returns all possible solutions for the variables given in the second paramter.
-allSolutionsIn :: Ipasir a => a -> [Word] -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
-allSolutionsIn solver vars = iterativeSolving solver newClause
+ipasirAllSolutionsIn :: Ipasir a => a -> [Word] -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
+ipasirAllSolutionsIn solver vars = ipasirIterativeSolving solver newClause
     where
-        newClause sol = [filter (/=0) $ map ((\v -> (*v) $ negate $ fromEnum $ sol Vec.! v ) . fromEnum) vars]
+        newClause sol = [filter (/=0) $ map (\v -> negate $ litToInt $ (sol Vec.! fromEnum v, v) ) vars]
 
 -- | Returns all possible solutions.
-allSolutions :: Ipasir a => a -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
-allSolutions solver = iterativeSolving solver newClause
+ipasirAllSolutions :: Ipasir a => a -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
+ipasirAllSolutions solver = ipasirIterativeSolving solver newClause
     where
-        newClause sol = [Vec.toList $ Vec.filter (/=0) $ Vec.imap (\i b -> (*i) $ negate $ fromEnum b) sol]
+        newClause sol = [Vec.toList $ Vec.filter (/=0) $ Vec.imap (\i b -> negate $ litToInt (b,i) ) sol]
+
+-- | Returns all possible solutions.
+ipasirAllSolutionsC :: Ipasir a => a -> IO [Vec.Vector LBool]
+ipasirAllSolutionsC solver = ipasirIterativeSolvingC solver newClause
+    where
+        newClause sol = [Vec.toList $ Vec.filter (/=0) $ Vec.imap (\i b -> negate $ litToInt (b,i) ) sol]
+
 

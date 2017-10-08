@@ -14,6 +14,8 @@ module SAT.IPASIR.Cryptominisat.C
     ) where
 
 import Data.Word
+import Data.Bits (toIntegralSized)
+import Data.Maybe (fromJust)
 import qualified Data.Vector.Storable as Vec
 
 import Control.Comonad
@@ -22,6 +24,7 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Marshal.Array
 import Foreign.C.Types
+import Foreign.ForeignPtr.Unsafe (unsafeForeignPtrToPtr)
 
 import SAT.IPASIR
 import SAT.IPASIR.Api
@@ -36,27 +39,29 @@ withCS :: CryptoMiniSat -> (Ptr () -> IO a) -> IO a
 withCS (CryptoMiniSat fPtr) f = withForeignPtr fPtr f
 
 instance Ipasir CryptoMiniSat where
+    ipasirGetID (CryptoMiniSat ptr) = fromJust $ toIntegralSized $ toInteger $ ptrToWordPtr $ unsafeForeignPtrToPtr ptr
+
     ipasirSignature _ = do
         ptr <- {#call unsafe ipasir_signature #}
         let iPtr = castPtr ptr :: Ptr Word8
         ints <- peekArray0 0 iPtr
         return $ "cryptominisat:" ++ map ( toEnum . fromEnum) ints
 
-    ipasirInit = do
+    ipasirInit' = do
         ptr <- {#call unsafe ipasir_init #}
         foreignPtr <- newForeignPtr ipasir_release ptr
         return $ CryptoMiniSat foreignPtr
 
-    ipasirAdd s lit = withCS s (`{#call unsafe ipasir_add #}` (maybe 0 lit2int lit))
-    ipasirAssume s lit = withCS s (`{#call unsafe ipasir_assume #}` lit2int lit)
-    ipasirSolve s = int2SolveRes . fromEnum <$> withCS s {#call unsafe ipasir_solve #}
+    ipasirAdd' s lit = withCS s (`{#call unsafe ipasir_add #}` (toEnum lit))
+    ipasirAssume' s lit = withCS s (`{#call unsafe ipasir_assume #}` (toEnum lit))
+    ipasirSolve' s = int2SolveRes . fromEnum <$> withCS s {#call unsafe ipasir_solve #}
         where
-            int2SolveRes 0  = Nothing
-            int2SolveRes 10 = Just True
-            int2SolveRes 20 = Just False
+            int2SolveRes 0  = LUndef
+            int2SolveRes 10 = LTrue
+            int2SolveRes 20 = LFalse
             int2SolveRes a  = error $ "cryptominisat ipasir is behaving poorly: solve returned " ++ show a
-    ipasirVal s lit = int2Lit . fromEnum <$> withCS s (`{#call unsafe ipasir_val #}` (toEnum . fromEnum) lit)
-    ipasirFailed s lit = toEnum . fromEnum <$> withCS s (`{#call unsafe ipasir_failed #}` (toEnum . fromEnum) lit)
+    ipasirVal' s lit    = fromEnum <$> withCS s (`{#call unsafe ipasir_val #}` (toEnum . fromEnum) lit)
+    ipasirFailed' s lit = (>0)     <$> withCS s (`{#call unsafe ipasir_failed #}` (toEnum . fromEnum) lit)
 
 cryptoAddXorClauses :: CryptoMiniSat -> [Lit [Word]] -> IO ()
 cryptoAddXorClauses _ [] = return ()
@@ -75,10 +80,3 @@ cryptoAddXorClause s clause = withCS s addXorInternal
                 {#call unsafe crypto_add_xor_clause #} solverPtr (castPtr vecPtr) size sign
         sign = toEnum $ fromEnum $ isPositive clause
 
-lit2int (Pos a) = toEnum $   fromEnum a
-lit2int (Neg a) = toEnum $ -(fromEnum a)
-
-int2Lit lit
-    | lit >  0 = Just $ Pos $ toEnum (abs lit)
-    | lit <  0 = Just $ Neg $ toEnum (abs lit)
-    | lit == 0 = Nothing

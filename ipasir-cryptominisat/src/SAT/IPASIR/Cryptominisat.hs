@@ -33,7 +33,7 @@ instance Ord v => Clauses (IpasirSolver CryptoMiniSat) (Formula v) where
         where
             addClauses' :: Formula v -> IpasirSolver CryptoMiniSat v -> IO (IpasirSolver CryptoMiniSat v)
             addClauses' f (IpasirSolver cSolver vc) = do
-                ipasirAddClauses    cSolver intOrs
+                ipasirAddClausesLit cSolver intOrs
                 cryptoAddXorClauses cSolver intXors
                 return (IpasirSolver cSolver vc')
                 where
