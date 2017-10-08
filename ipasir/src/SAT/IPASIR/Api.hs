@@ -281,7 +281,7 @@ ipasirSeqAll solver = do
     let s = ipasirGetID solver
     !ex <- readVar executionProcess s
     
-    mapM_ (\(Stuff a) -> print a) ex
+    !mapM_ (\(Stuff a) -> print a) ex
     
 --    let !newSolver = foldl (flip seq) solver ex
     writeVar executionProcess s []
