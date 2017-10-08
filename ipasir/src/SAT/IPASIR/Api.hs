@@ -22,7 +22,6 @@ module SAT.IPASIR.Api
     , ipasirIterativeSolving
     , ipasirAllSolutionsIn
     , ipasirAllSolutions
-    , ipasirAllSolutionsC
     ) where
 
 import Control.Monad
@@ -399,7 +398,7 @@ ipasirAddClausesLit s clauses = mapM_ (ipasirAddClauseLit s) clauses
 -- | The return value is a tuple of the conflict, which optains after the solver blocked and the solutions. The solutions start with
 -- | the first itetation, which makes using laziness possible. 
 ipasirUnfoldSolving :: Ipasir a => a -> (Vec.Vector LBool -> b -> ([[Int]],b) ) -> b -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
-ipasirUnfoldSolving solver f b = do
+ipasirUnfoldSolving solver f b = unsafeInterleaveIO $ do
     state <- ipasirSolve solver
     case state of
         LUndef -> return (Nothing, [])
@@ -411,27 +410,10 @@ ipasirUnfoldSolving solver f b = do
             let (clauses,newB) = trace "solved" $ f solution b
             ipasirAddClauses solver clauses
             second (solution:) <$> ipasirUnfoldSolving solver f newB
-            
-ipasirUnfoldSolvingC :: Ipasir a => a -> (Vec.Vector LBool -> b -> ([[Int]],b) ) -> b -> IO [Vec.Vector LBool]
-ipasirUnfoldSolvingC solver f b = do
-    state <- ipasirSolve solver
-    case state of
-        LUndef -> return []
-        LFalse -> return []
-        LTrue  -> do
-            solution <- ipasirSolution' solver
-            let (clauses,newB) = trace "solved" $ f solution b
-            ipasirAddClauses solver clauses
-            unsafeInterleaveIO $ (solution:) <$> ipasirUnfoldSolvingC solver f newB
 
 -- | Same as 'unfoldSolving' but without a general state.
 ipasirIterativeSolving :: Ipasir a => a -> (Vec.Vector LBool -> [[Int]]) -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
 ipasirIterativeSolving solver f = ipasirUnfoldSolving solver (const . (,()) . f) ()
-
--- | Same as 'unfoldSolving' but without a general state.
-ipasirIterativeSolvingC :: Ipasir a => a -> (Vec.Vector LBool -> [[Int]]) -> IO [Vec.Vector LBool]
-ipasirIterativeSolvingC solver f = ipasirUnfoldSolvingC solver (const . (,()) . f) ()
-
 
 -- | Returns all possible solutions for the variables given in the second paramter.
 ipasirAllSolutionsIn :: Ipasir a => a -> [Word] -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
@@ -444,11 +426,4 @@ ipasirAllSolutions :: Ipasir a => a -> IO (Maybe (Set.Set Word), [Vec.Vector LBo
 ipasirAllSolutions solver = ipasirIterativeSolving solver newClause
     where
         newClause sol = [Vec.toList $ Vec.filter (/=0) $ Vec.imap (\i b -> negate $ litToInt (b,i) ) sol]
-
--- | Returns all possible solutions.
-ipasirAllSolutionsC :: Ipasir a => a -> IO [Vec.Vector LBool]
-ipasirAllSolutionsC solver = ipasirIterativeSolvingC solver newClause
-    where
-        newClause sol = [Vec.toList $ Vec.filter (/=0) $ Vec.imap (\i b -> negate $ litToInt (b,i) ) sol]
-
 
