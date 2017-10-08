@@ -7,6 +7,6 @@ testAllSolutionsIn = do
     solver <- ipasirInit :: IO CryptoMiniSat
     ipasirAddClauses solver cnf1
     solutions <- ipasirAllSolutionsC solver
-    --print solutions
+    print $ solutions !! 2
     return ()
 

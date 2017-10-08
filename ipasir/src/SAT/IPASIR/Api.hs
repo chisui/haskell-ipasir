@@ -422,7 +422,7 @@ ipasirUnfoldSolvingC solver f b = do
             solution <- ipasirSolution' solver
             let (clauses,newB) = trace "solved" $ f solution b
             ipasirAddClauses solver clauses
-            (solution:) <$> ipasirUnfoldSolvingC solver f newB
+            unsafeInterleaveIO $ (solution:) <$> ipasirUnfoldSolvingC solver f newB
 
 -- | Same as 'unfoldSolving' but without a general state.
 ipasirIterativeSolving :: Ipasir a => a -> (Vec.Vector LBool -> [[Int]]) -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
