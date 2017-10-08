@@ -36,10 +36,10 @@ import qualified Data.Vector as Vec
 import Data.IORef
 import Data.Word
 import qualified Data.Set as Set
-import System.Random
 import System.IO.Unsafe
 import Data.Bifunctor
 import Debug.Trace
+import Control.DeepSeq
 
 import SAT.IPASIR.EnvironmentVariable
 import SAT.IPASIR.Literals
@@ -58,10 +58,13 @@ clauseCreator = unsafePerformIO newEnv
 solverState :: Env IDType SolverState
 solverState = unsafePerformIO newEnv
 
-executionProcess :: Env IDType [Stuff]
+executionProcess :: Env IDType (Maybe Stuff)
 executionProcess = unsafePerformIO newEnv
 
-data Stuff = forall a. (Show a) => Stuff a
+data Stuff = forall a. (Show a, NFData a) => Stuff a
+
+instance NFData (Stuff) where
+    rnf (Stuff x) = rnf x
 
 {-|
     Class that models the <https://github.com/biotomas/ipasir/blob/master/ipasir.h ipasir.h> interface.
@@ -280,11 +283,7 @@ ipasirSeqAll :: Ipasir a => a -> IO ()
 ipasirSeqAll solver = do
     let s = ipasirGetID solver
     !ex <- readVar executionProcess s
-    
-    !mapM_ (\(Stuff a) -> print a) ex
-    
---    let !newSolver = foldl (flip seq) solver ex
-    writeVar executionProcess s []
+    deepseq ex $ writeVar executionProcess s Nothing
     return ()
 
 -- | State-safe version of 'ipasirInit''
@@ -295,7 +294,7 @@ ipasirInit = do
     writeVar maxVar s 0
     writeVar clauseCreator s []
     writeVar solverState s INPUT
-    writeVar executionProcess s []
+    writeVar executionProcess s Nothing
     return solver
 
 -- | State-safe version of 'ipasirAdd''
@@ -431,8 +430,9 @@ ipasirAddClausesLit s clauses = mapM_ (ipasirAddClauseLit s) clauses
 -- | the first itetation, which makes using laziness possible. 
 ipasirUnfoldSolving :: Ipasir a => a -> (Vec.Vector LBool -> b -> ([[Int]],b) ) -> b -> IO (Maybe (Set.Set Word), [Vec.Vector LBool])
 ipasirUnfoldSolving solver f b = do
+    ipasirSeqAll solver
     (c,s) <- ipasirUnfoldSolving' solver f b
-    modifyVar executionProcess sID ((Stuff c):)
+    writeVar executionProcess sID $ Just $ Stuff c
     return (c,s)
     where
         sID = ipasirGetID solver

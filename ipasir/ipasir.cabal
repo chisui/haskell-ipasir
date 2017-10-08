@@ -35,7 +35,7 @@ library
                      , comonad
                      , monad-loops
                      , stm
-                     , random
+                     , deepseq
   hs-source-dirs:      src
   default-language:    Haskell2010
 
