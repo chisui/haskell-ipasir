@@ -236,11 +236,11 @@ a  ->* b = notB a   ||* b
 -- | Infix operator equivalence.
 a <->* b = notB $ a ++* b
 
-infixl 1  &&*
-infixl 2  ||*
+infixl 5  &&*
+infixl 4  ||*
 infixl 3  ++*
-infixl 4  ->*
-infixl 5 <->*
+infixl 2  ->*
+infixl 1 <->*
 
 -- | Defines for the different formula steps ('Formula','RFormula','DFormula') some general operations.
 class (Foldable (GeneralFormula s), Traversable (GeneralFormula s)) => FormulaOperation s where
